@@ -5,10 +5,11 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
-from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.memory import MemoryStorage
 
 
 TOKEN = os.getenv("BOT_TOKEN")
@@ -16,226 +17,205 @@ if not TOKEN:
     raise RuntimeError("BOT_TOKEN is not set")
 
 bot = Bot(token=TOKEN)
-dp = Dispatcher()
+dp = Dispatcher(storage=MemoryStorage())
 
 
-# ========= Меню =========
-def main_menu_kb():
-    kb = ReplyKeyboardBuilder()
-    kb.button(text="🌬 Дыхание")
-    kb.button(text="🧠 Разобрать тревогу")
-    kb.button(text="🪨 Заземление (медленно)")
-    kb.button(text="📌 План на 2 минуты")
-    kb.adjust(2, 2)
-    return kb.as_markup(resize_keyboard=True)
+# ================= UI =================
 
-
-def after_step_kb():
+def main_menu():
     kb = InlineKeyboardBuilder()
-    kb.button(text="🔁 Ещё один шаг", callback_data="more_step")
-    kb.button(text="🏠 Меню", callback_data="menu")
+    kb.button(text="🌬 Шаг 1 — Дыхание", callback_data="breath")
+    kb.button(text="🧠 Шаг 2 — Разобрать тревогу", callback_data="questions")
+    kb.button(text="🪨 Шаг 3 — Заземление", callback_data="ground")
+    kb.button(text="📌 Шаг 4 — План на 2 минуты", callback_data="plan")
     kb.adjust(1)
     return kb.as_markup()
 
 
-def choose_next_step_kb():
+def nav_buttons():
     kb = InlineKeyboardBuilder()
-    kb.button(text="🌬 Дыхание", callback_data="step_breath")
-    kb.button(text="🧠 Вопросы", callback_data="step_questions")
-    kb.button(text="🪨 Заземление", callback_data="step_ground")
-    kb.button(text="📌 План 2 мин", callback_data="step_plan")
-    kb.adjust(2, 2)
+    kb.button(text="🔁 Ещё шаг", callback_data="more")
+    kb.button(text="🏠 Меню", callback_data="menu")
+    kb.adjust(2)
     return kb.as_markup()
 
 
-# ========= Вопросы =========
-class AnxietyQuestions(StatesGroup):
+def now_future_kb():
+    kb = InlineKeyboardBuilder()
+    kb.button(text="⏱ Сейчас", callback_data="aq_now")
+    kb.button(text="🔮 Будущее", callback_data="aq_future")
+    kb.adjust(2)
+    return kb.as_markup()
+
+
+# ================= FSM =================
+
+class AnxietyFlow(StatesGroup):
     q1 = State()
     q2 = State()
     q3 = State()
     q4 = State()
 
 
-def kb_now_future():
-    kb = InlineKeyboardBuilder()
-    kb.button(text="⏱ Про сейчас", callback_data="aq_now")
-    kb.button(text="🔮 Про будущее", callback_data="aq_future")
-    kb.adjust(2)
-    return kb.as_markup()
-
+# ================= START =================
 
 @dp.message(Command("start"))
 async def start(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
-        "Привет 💛\n\n"
+        "💙 *Навигатор спокойствия*\n\n"
         "Если тревожно — ты не одна.\n"
         "Давай снизим напряжение шаг за шагом.\n\n"
-        "Выбери, с чего начнём:",
-        reply_markup=main_menu_kb()
+        "Выбери шаг:",
+        parse_mode="Markdown",
+        reply_markup=main_menu()
     )
-    await message.answer("Можно идти по шагам 👇", reply_markup=choose_next_step_kb())
 
 
 @dp.callback_query(F.data == "menu")
-async def back_to_menu(cb: CallbackQuery, state: FSMContext):
+async def back_menu(cb: CallbackQuery, state: FSMContext):
     await cb.answer()
     await state.clear()
-    await cb.message.answer("Меню 👇", reply_markup=main_menu_kb())
-    await cb.message.answer("Выбери шаг:", reply_markup=choose_next_step_kb())
-
-
-@dp.callback_query(F.data == "more_step")
-async def more_step(cb: CallbackQuery):
-    await cb.answer()
-    await cb.message.answer(
-        "Хорошо. Выберем следующий маленький шаг 💛",
-        reply_markup=choose_next_step_kb()
+    await cb.message.edit_text(
+        "💙 *Навигатор спокойствия*\n\nВыбери шаг:",
+        parse_mode="Markdown",
+        reply_markup=main_menu()
     )
 
 
-# ========= ДЫХАНИЕ =========
-@dp.message(F.text == "🌬 Дыхание")
-async def breath_from_menu(message: Message):
-    await send_breath(message)
-
-
-@dp.callback_query(F.data == "step_breath")
-async def breath_from_inline(cb: CallbackQuery):
+@dp.callback_query(F.data == "more")
+async def more(cb: CallbackQuery):
     await cb.answer()
-    await send_breath(cb.message)
+    await cb.message.edit_text(
+        "Продолжим 💛\n\nВыбери следующий шаг:",
+        reply_markup=main_menu()
+    )
 
 
-async def send_breath(target: Message):
-    await target.answer(
-        "🌬 **Шаг 1: Дыхание**\n\n"
-        "Когда тревога высокая, телу важно помочь замедлиться.\n\n"
+# ================= ШАГ 1 =================
+
+@dp.callback_query(F.data == "breath")
+async def breath(cb: CallbackQuery):
+    await cb.answer()
+    await cb.message.edit_text(
+        "🌬 *Шаг 1 из 4 — Дыхание*\n\n"
+        "Когда тревога усиливается, телу важно замедлиться.\n\n"
         "*Физиологический вздох:*\n"
-        "1) Вдох носом\n"
-        "2) Маленький довдох\n"
-        "3) Длинный выдох ртом\n\n"
+        "Вдох → маленький довдох → длинный выдох\n\n"
         "Повтори 3–5 раз.\n\n"
-        "Или вариант 4–6:\n"
-        "Вдох на 4… выдох на 6…\n"
-        "Сделай 8 циклов.\n\n"
-        "Ты уже делаешь важное 💛",
+        "Или вдох на 4… выдох на 6… (8 циклов)\n\n"
+        "Ты уже помогаешь себе 💛",
         parse_mode="Markdown",
-        reply_markup=after_step_kb()
+        reply_markup=nav_buttons()
     )
 
 
-# ========= ЗАЗЕМЛЕНИЕ (медитация) =========
-@dp.message(F.text == "🪨 Заземление (медленно)")
-async def ground_from_menu(message: Message):
-    await send_ground_slow(message)
+# ================= ШАГ 2 =================
 
-
-@dp.callback_query(F.data == "step_ground")
-async def ground_from_inline(cb: CallbackQuery):
+@dp.callback_query(F.data == "questions")
+async def questions_start(cb: CallbackQuery, state: FSMContext):
     await cb.answer()
-    await send_ground_slow(cb.message)
-
-
-async def send_ground_slow(target: Message):
-    await target.answer(
-        "🪨 **Заземление**\n\n"
-        "Немного замедлимся.\n"
-        "Я понимаю тебя.\n"
-        "Тревога может ощущаться очень сильной.\n\n"
-        "Сделай спокойный вдох…\n"
-        "и медленный выдох…\n\n"
-        "👀 5 — Посмотри вокруг.\n"
-        "Назови 5 вещей, которые ты видишь.\n\n"
-        "🤍 4 — Обрати внимание на ощущения.\n"
-        "Удобно ли ты сидишь или стоишь?\n"
-        "Тепло тебе или прохладно?\n"
-        "Почувствуй ткань одежды.\n\n"
-        "👂 3 — Прислушайся.\n"
-        "Какие 3 звука есть вокруг?\n\n"
-        "🌬 2 — Есть ли запахи?\n"
-        "Если нет — просто отметь это.\n\n"
-        "👅 1 — Обрати внимание на вкус.\n"
-        "Если вкуса нет — представь вкус свежих ягод или фруктов.\n"
-        "Какой он? Сладкий? Кисловатый?\n\n"
-        "Сделай ещё один медленный вдох…\n"
-        "и длинный выдох.\n\n"
-        "Ты здесь.\n"
-        "Ты в этом моменте.\n"
-        "И волна тревоги постепенно спадает.\n\n"
-        "Я рядом 💛",
-        parse_mode="Markdown",
-        reply_markup=after_step_kb()
+    await state.set_state(AnxietyFlow.q1)
+    await cb.message.edit_text(
+        "🧠 *Шаг 2 из 4 — Разобрать тревогу*\n\n"
+        "Я понимаю тебя.\n\n"
+        "1️⃣ Что сейчас пугает больше всего?\n"
+        "(в 1 фразе)",
+        parse_mode="Markdown"
     )
 
 
-# ========= ПЛАН 2 МИН =========
-@dp.message(F.text == "📌 План на 2 минуты")
-async def plan_from_menu(message: Message):
-    await send_plan(message)
-
-
-@dp.callback_query(F.data == "step_plan")
-async def plan_from_inline(cb: CallbackQuery):
-    await cb.answer()
-    await send_plan(cb.message)
-
-
-def kb_plan_choices():
-    kb = InlineKeyboardBuilder()
-    kb.button(text="🥤 Вода / умыться", callback_data="p_water")
-    kb.button(text="🌬 Глубокий вдох свежего воздуха", callback_data="p_air")
-    kb.button(text="💬 Написать 1 сообщение", callback_data="p_message")
-    kb.button(text="📝 3 факта → 1 шаг", callback_data="p_facts")
-    kb.button(text="⏲ Таймер 2 мин", callback_data="p_timer")
-    kb.adjust(1)
-    return kb.as_markup()
-
-
-async def send_plan(target: Message):
-    await target.answer(
-        "📌 **План на 2 минуты**\n\n"
-        "Не нужно решать всё сразу.\n"
-        "Выбери один маленький шаг:",
-        parse_mode="Markdown",
-        reply_markup=kb_plan_choices()
+@dp.message(AnxietyFlow.q1)
+async def q1(message: Message, state: FSMContext):
+    await state.update_data(q1=message.text)
+    await state.set_state(AnxietyFlow.q2)
+    await message.answer(
+        "2️⃣ Это больше про сейчас или про будущее?",
+        reply_markup=now_future_kb()
     )
 
 
-@dp.callback_query(F.data.startswith("p_"))
-async def plan_choice(cb: CallbackQuery):
+@dp.callback_query(AnxietyFlow.q2, F.data.in_(["aq_now", "aq_future"]))
+async def q2(cb: CallbackQuery, state: FSMContext):
     await cb.answer()
-
-    mapping = {
-        "p_water": "Выпей воды или умойся. Это помогает телу почувствовать опору.",
-        "p_air": "Сделай глубокий вдох свежего воздуха. Медленно. И длинный выдох.",
-        "p_message": "Напиши: «мне сейчас тревожно, можно 2 минуты поговорить?»",
-        "p_facts": (
-            "Напиши 3 факта, которые точно известны.\n"
-            "Потом выбери 1 самый маленький шаг на ближайшие 10 минут.\n"
-            "Только один."
-        ),
-        "p_timer": "Поставь таймер на 2 минуты и сделай самое простое действие.",
-    }
-
-    await cb.message.answer(mapping.get(cb.data, "Ок."))
-
-    kb = InlineKeyboardBuilder()
-    kb.button(text="✅ Готово", callback_data="done_ok")
-    kb.button(text="🔁 Ещё шаг", callback_data="more_step")
-    kb.adjust(2)
-    await cb.message.answer("Готово? 💛", reply_markup=kb.as_markup())
-
-
-@dp.callback_query(F.data == "done_ok")
-async def done_ok(cb: CallbackQuery):
-    await cb.answer()
+    value = "про сейчас" if cb.data == "aq_now" else "про будущее"
+    await state.update_data(q2=value)
+    await state.set_state(AnxietyFlow.q3)
     await cb.message.answer(
-        "Даже маленький шаг — уже забота о себе 💛",
-        reply_markup=after_step_kb()
+        "3️⃣ Что можно сделать в ближайшие 10 минут,\n"
+        "чтобы стало хотя бы на 5% легче?"
     )
 
 
-# ========= Веб-сервер =========
+@dp.message(AnxietyFlow.q3)
+async def q3(message: Message, state: FSMContext):
+    await state.update_data(q3=message.text)
+    await state.set_state(AnxietyFlow.q4)
+    await message.answer(
+        "4️⃣ Представь, что друг или близкий человек\n"
+        "написал тебе это же.\n"
+        "Что бы ты ответила?"
+    )
+
+
+@dp.message(AnxietyFlow.q4)
+async def q4(message: Message, state: FSMContext):
+    data = await state.get_data()
+
+    summary = (
+        "✨ *Ты уже проделала важную работу*\n\n"
+        f"• Пугает: {data.get('q1')}\n"
+        f"• Это: {data.get('q2')}\n"
+        f"• Маленький шаг: {data.get('q3')}\n"
+        f"• Поддержка: {message.text}\n\n"
+        "Ты справляешься 💛"
+    )
+
+    await message.answer(summary, parse_mode="Markdown", reply_markup=nav_buttons())
+    await state.clear()
+
+
+# ================= ШАГ 3 =================
+
+@dp.callback_query(F.data == "ground")
+async def ground(cb: CallbackQuery):
+    await cb.answer()
+    await cb.message.edit_text(
+        "🪨 *Шаг 3 из 4 — Заземление*\n\n"
+        "Сделай медленный вдох… и выдох…\n\n"
+        "👀 5 вещей, которые ты видишь\n"
+        "🤍 4 ощущения (тепло/холодно, удобно ли)\n"
+        "👂 3 звука вокруг\n"
+        "🌬 2 запаха\n"
+        "👅 1 вкус\n"
+        "Если вкуса нет — представь свежие ягоды или фрукты.\n\n"
+        "Ты здесь. Ты в безопасности 💛",
+        parse_mode="Markdown",
+        reply_markup=nav_buttons()
+    )
+
+
+# ================= ШАГ 4 =================
+
+@dp.callback_query(F.data == "plan")
+async def plan(cb: CallbackQuery):
+    await cb.answer()
+    await cb.message.edit_text(
+        "📌 *Шаг 4 из 4 — План на 2 минуты*\n\n"
+        "Выбери один маленький шаг:\n\n"
+        "🥤 Выпить воды\n"
+        "🌬 Глубокий вдох свежего воздуха\n"
+        "💬 Написать близкому человеку\n"
+        "📝 3 факта → 1 маленький шаг\n"
+        "⏲ Таймер 2 минуты\n\n"
+        "Только один шаг. Этого достаточно 💛",
+        parse_mode="Markdown",
+        reply_markup=nav_buttons()
+    )
+
+
+# ================= WEB SERVER =================
+
 async def handle_root(request):
     return web.Response(text="OK")
 
