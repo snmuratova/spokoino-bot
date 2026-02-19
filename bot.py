@@ -20,18 +20,17 @@ if not TOKEN:
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# Простейшие настройки "на пользователя" (в памяти).
-# На бесплатном Render иногда перезапускается — настройки могут сбрасываться.
-USER_THEME: dict[int, str] = {}  # "day" | "night"
+# Простая "настройка темы" в памяти (на бесплатном Render может сбрасываться при перезапуске)
+USER_THEME = {}  # user_id -> "day" | "night"
 
 
 # ========= ВИЗУАЛ / UX =========
 
 def theme(user_id: int) -> str:
-    return USER_THEME.get(user_id, "night")  # по умолчанию "ночной анти-тревога"
+    return USER_THEME.get(user_id, "night")  # по умолчанию ночной
 
-def t(user_id: int, day: str, night: str) -> str:
-    return night if theme(user_id) == "night" else day
+def t(user_id: int, day_text: str, night_text: str) -> str:
+    return night_text if theme(user_id) == "night" else day_text
 
 def progress_bar(step: int, total: int = 4) -> str:
     filled = "▓" * step
@@ -46,19 +45,17 @@ async def typing(chat_id: int, seconds: float = 0.8):
     except Exception:
         pass
 
-async def say(message_or_chat, text: str, *, parse_mode: str | None = "Markdown", reply_markup=None, delay: float = 0.8):
-    # message_or_chat: Message или CallbackQuery.message
-    chat_id = message_or_chat.chat.id
-    await typing(chat_id, delay)
-    await message_or_chat.answer(text, parse_mode=parse_mode, reply_markup=reply_markup)
+async def say(message_obj: Message, text: str, reply_markup=None, delay: float = 0.8, parse_mode="Markdown"):
+    await typing(message_obj.chat.id, delay)
+    await message_obj.answer(text, parse_mode=parse_mode, reply_markup=reply_markup)
 
-async def edit(cb: CallbackQuery, text: str, *, parse_mode: str | None = "Markdown", reply_markup=None):
+async def edit(cb: CallbackQuery, text: str, reply_markup=None, parse_mode="Markdown"):
     await cb.answer()
     try:
         await cb.message.edit_text(text, parse_mode=parse_mode, reply_markup=reply_markup)
     except Exception:
-        # если Telegram не даёт редактировать (например, уже такое же), шлём новым сообщением
-        await say(cb.message, text, parse_mode=parse_mode, reply_markup=reply_markup, delay=0.2)
+        # если Telegram не даёт редактировать, шлём новым сообщением
+        await say(cb.message, text, reply_markup=reply_markup, delay=0.2, parse_mode=parse_mode)
 
 
 # ========= КНОПКИ / МЕНЮ =========
@@ -70,7 +67,7 @@ def kb_main():
     kb.button(text="🪨 Шаг 3 — Заземление", callback_data="step:ground")
     kb.button(text="📌 Шаг 4 — План на 2 минуты", callback_data="step:plan")
     kb.button(text="⚙️ Настройки", callback_data="settings")
-    kb.adjust(1, 1, 1, 1, 1)
+    kb.adjust(1)
     return kb.as_markup()
 
 def kb_nav():
@@ -93,7 +90,7 @@ def kb_now_future():
     kb = InlineKeyboardBuilder()
     kb.button(text="⏱ Это про сейчас", callback_data="aq:now")
     kb.button(text="🔮 Это про будущее", callback_data="aq:future")
-    kb.adjust(1, 1)
+    kb.adjust(1)
     return kb.as_markup()
 
 def kb_plan():
@@ -162,7 +159,6 @@ async def cb_settings(cb: CallbackQuery):
     )
     await edit(cb, text, reply_markup=kb_settings(uid))
 
-
 @dp.callback_query(F.data == "theme:toggle")
 async def cb_theme_toggle(cb: CallbackQuery):
     uid = cb.from_user.id
@@ -180,7 +176,7 @@ async def cb_breath(cb: CallbackQuery):
     text = (
         f"{header}\n\n"
         "Когда тревога нарастает, телу важно замедлиться.\n\n"
-        "*Физиологическое дыхание:*\n"
+        "*Физиологический вздох:*\n"
         "• вдох носом\n"
         "• маленький довдох\n"
         "• длинный выдох ртом\n\n"
@@ -227,11 +223,13 @@ async def q2(cb: CallbackQuery, state: FSMContext):
     val = "про сейчас" if cb.data == "aq:now" else "про будущее"
     await state.update_data(q2=val)
     await state.set_state(AnxietyFlow.q3)
-    await say(cb.message,
-              "3️⃣ Что ты можешь сделать в ближайшие 10 минут,\n"
-              "чтобы стало хотя бы на *5% легче*?\n"
-              "Пусть это будет маленький шаг.",
-              delay=0.6)
+    await say(
+        cb.message,
+        "3️⃣ Что ты можешь сделать в ближайшие 10 минут,\n"
+        "чтобы стало хотя бы на *5% легче*?\n"
+        "Пусть это будет маленький шаг.",
+        delay=0.6
+    )
 
 @dp.message(AnxietyFlow.q3)
 async def q3(message: Message, state: FSMContext):
@@ -307,7 +305,6 @@ async def cb_ground(cb: CallbackQuery):
 
 @dp.callback_query(F.data == "step:plan")
 async def cb_plan(cb: CallbackQuery):
-    uid = cb.from_user.id
     header = f"📌 *Шаг 4 из 4*  `{progress_bar(4)}`"
     text = (
         f"{header}\n\n"
@@ -319,10 +316,9 @@ async def cb_plan(cb: CallbackQuery):
 
 @dp.callback_query(F.data.startswith("plan:"))
 async def cb_plan_choice(cb: CallbackQuery):
-    uid = cb.from_user.id
     await cb.answer()
-
     key = cb.data.split(":", 1)[1]
+
     if key == "water":
         msg = "🥤 Выпей воды или умойся.\nЭто простое действие помогает телу почувствовать опору."
     elif key == "air":
@@ -359,8 +355,12 @@ async def start_web_server():
     site = web.TCPSite(runner, host="0.0.0.0", port=port)
     await site.start()
 
+    print(f"Web server started on port {port}", flush=True)
+
 async def main():
+    # Важно: сначала поднимаем порт, чтобы Render не таймаутился
     await start_web_server()
+    print("Starting bot polling...", flush=True)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
