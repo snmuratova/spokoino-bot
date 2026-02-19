@@ -12,54 +12,62 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 
+from aiogram.exceptions import TelegramConflictError
 
+
+# ==========================
+# CONFIG
+# ==========================
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
     raise RuntimeError("BOT_TOKEN is not set")
 
+PORT = int(os.getenv("PORT", "10000"))
+
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# Простая "настройка темы" в памяти (на бесплатном Render может сбрасываться при перезапуске)
-USER_THEME = {}  # user_id -> "day" | "night"
+# Простейшие настройки на пользователя (в памяти).
+# На бесплатном Render при перезапуске могут сбрасываться.
+USER_THEME: dict[int, str] = {}  # "day" | "night"
 
 
-# ========= ВИЗУАЛ / UX =========
-
+# ==========================
+# UX HELPERS
+# ==========================
 def theme(user_id: int) -> str:
-    return USER_THEME.get(user_id, "night")  # по умолчанию ночной
+    return USER_THEME.get(user_id, "night")
 
-def t(user_id: int, day_text: str, night_text: str) -> str:
-    return night_text if theme(user_id) == "night" else day_text
+def t(user_id: int, day: str, night: str) -> str:
+    return night if theme(user_id) == "night" else day
 
 def progress_bar(step: int, total: int = 4) -> str:
     filled = "▓" * step
     empty = "░" * (total - step)
     return f"{filled}{empty}"
 
-async def typing(chat_id: int, seconds: float = 0.8):
-    # Эффект «печатает…»
+async def typing(chat_id: int, seconds: float = 0.7) -> None:
     try:
         await bot.send_chat_action(chat_id, ChatAction.TYPING)
         await asyncio.sleep(seconds)
     except Exception:
         pass
 
-async def say(message_obj: Message, text: str, reply_markup=None, delay: float = 0.8, parse_mode="Markdown"):
-    await typing(message_obj.chat.id, delay)
-    await message_obj.answer(text, parse_mode=parse_mode, reply_markup=reply_markup)
+async def say(msg: Message, text: str, *, parse_mode: str | None = "Markdown", reply_markup=None, delay: float = 0.7):
+    await typing(msg.chat.id, delay)
+    await msg.answer(text, parse_mode=parse_mode, reply_markup=reply_markup)
 
-async def edit(cb: CallbackQuery, text: str, reply_markup=None, parse_mode="Markdown"):
+async def edit(cb: CallbackQuery, text: str, *, parse_mode: str | None = "Markdown", reply_markup=None):
     await cb.answer()
     try:
         await cb.message.edit_text(text, parse_mode=parse_mode, reply_markup=reply_markup)
     except Exception:
-        # если Telegram не даёт редактировать, шлём новым сообщением
-        await say(cb.message, text, reply_markup=reply_markup, delay=0.2, parse_mode=parse_mode)
+        await say(cb.message, text, parse_mode=parse_mode, reply_markup=reply_markup, delay=0.2)
 
 
-# ========= КНОПКИ / МЕНЮ =========
-
+# ==========================
+# KEYBOARDS
+# ==========================
 def kb_main():
     kb = InlineKeyboardBuilder()
     kb.button(text="🌬 Шаг 1 — Дыхание", callback_data="step:breath")
@@ -67,7 +75,7 @@ def kb_main():
     kb.button(text="🪨 Шаг 3 — Заземление", callback_data="step:ground")
     kb.button(text="📌 Шаг 4 — План на 2 минуты", callback_data="step:plan")
     kb.button(text="⚙️ Настройки", callback_data="settings")
-    kb.adjust(1)
+    kb.adjust(1, 1, 1, 1, 1)
     return kb.as_markup()
 
 def kb_nav():
@@ -80,17 +88,17 @@ def kb_nav():
 def kb_settings(user_id: int):
     kb = InlineKeyboardBuilder()
     cur = theme(user_id)
-    toggle_text = "🌙 Ночной режим: ВКЛ" if cur == "night" else "☀️ Дневной режим: ВКЛ"
+    toggle_text = "🌙 Ночной стиль: ВКЛ" if cur == "night" else "☀️ Дневной стиль: ВКЛ"
     kb.button(text=toggle_text, callback_data="theme:toggle")
     kb.button(text="🏠 Меню", callback_data="menu")
-    kb.adjust(1)
+    kb.adjust(1, 1)
     return kb.as_markup()
 
 def kb_now_future():
     kb = InlineKeyboardBuilder()
     kb.button(text="⏱ Это про сейчас", callback_data="aq:now")
     kb.button(text="🔮 Это про будущее", callback_data="aq:future")
-    kb.adjust(1)
+    kb.adjust(1, 1)
     return kb.as_markup()
 
 def kb_plan():
@@ -105,8 +113,9 @@ def kb_plan():
     return kb.as_markup()
 
 
-# ========= FSM (вопросы) =========
-
+# ==========================
+# FSM: QUESTIONS FLOW
+# ==========================
 class AnxietyFlow(StatesGroup):
     q1 = State()
     q2 = State()
@@ -114,8 +123,9 @@ class AnxietyFlow(StatesGroup):
     q4 = State()
 
 
-# ========= START / MENU =========
-
+# ==========================
+# START / MENU
+# ==========================
 @dp.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
@@ -128,12 +138,7 @@ async def cmd_start(message: Message, state: FSMContext):
         "Если тревожно — ты не одна.\nДавай бережно снизим напряжение шаг за шагом."
     )
 
-    await say(
-        message,
-        f"{title}\n\n{intro}\n\nВыбери шаг:",
-        reply_markup=kb_main(),
-        delay=0.6
-    )
+    await say(message, f"{title}\n\n{intro}\n\nВыбери шаг:", reply_markup=kb_main(), delay=0.6)
 
 @dp.callback_query(F.data == "menu")
 async def cb_menu(cb: CallbackQuery, state: FSMContext):
@@ -153,9 +158,9 @@ async def cb_settings(cb: CallbackQuery):
     uid = cb.from_user.id
     text = (
         "⚙️ *Настройки*\n\n"
-        "Можно переключить стиль.\n"
-        "Ночной — спокойнее и мягче.\n"
-        "Дневной — чуть бодрее и короче."
+        "Можно переключить стиль сообщений:\n"
+        "• Ночной — мягче и спокойнее\n"
+        "• Дневной — чуть короче и бодрее"
     )
     await edit(cb, text, reply_markup=kb_settings(uid))
 
@@ -167,29 +172,31 @@ async def cb_theme_toggle(cb: CallbackQuery):
     await edit(cb, f"{cur}\n\nВыбери шаг:", reply_markup=kb_main())
 
 
-# ========= ШАГ 1: ДЫХАНИЕ =========
-
+# ==========================
+# STEP 1: BREATH
+# ==========================
 @dp.callback_query(F.data == "step:breath")
 async def cb_breath(cb: CallbackQuery):
     uid = cb.from_user.id
     header = f"🌬 *Шаг 1 из 4*  `{progress_bar(1)}`"
     text = (
         f"{header}\n\n"
-        "Когда тревога нарастает, телу важно замедлиться.\n\n"
-        "*Физиологический вздох:*\n"
+        "Когда тревога поднимается, телу помогает короткий «сигнал безопасности».\n\n"
+        "*Физиологический вздох (самый быстрый):*\n"
         "• вдох носом\n"
-        "• маленький довдох\n"
+        "• маленький довдох (как «добавить воздуха»)\n"
         "• длинный выдох ртом\n\n"
         "Повтори **3–5 раз**.\n\n"
-        "Если хочется ровнее:\n"
+        "Если хочется более ровно:\n"
         "*4–6*: вдох на 4… выдох на 6… **8 циклов**.\n\n"
         + t(uid, "Ты справляешься 💛", "Я рядом 💛")
     )
     await edit(cb, text, reply_markup=kb_nav())
 
 
-# ========= ШАГ 2: ВОПРОСЫ (FSM) =========
-
+# ==========================
+# STEP 2: QUESTIONS (FSM)
+# ==========================
 @dp.callback_query(F.data == "step:questions")
 async def cb_questions_start(cb: CallbackQuery, state: FSMContext):
     uid = cb.from_user.id
@@ -199,9 +206,9 @@ async def cb_questions_start(cb: CallbackQuery, state: FSMContext):
     header = f"🧠 *Шаг 2 из 4*  `{progress_bar(2)}`"
     text = (
         f"{header}\n\n"
-        + t(uid, "Давай аккуратно разберём тревогу.", "Я понимаю тебя.\nДавай аккуратно разберём тревогу.")
+        + t(uid, "Давай разберём тревогу по шагам.", "Я понимаю тебя.\nДавай разберём тревогу по шагам.")
         + "\n\n"
-        "1️⃣ *Что сейчас напрягает больше всего?*\n"
+        "1️⃣ *Что сейчас пугает или напрягает больше всего?*\n"
         "_В 1 фразе._"
     )
     await edit(cb, text, reply_markup=None)
@@ -210,7 +217,7 @@ async def cb_questions_start(cb: CallbackQuery, state: FSMContext):
 async def q1(message: Message, state: FSMContext):
     txt = (message.text or "").strip()
     if len(txt) < 2:
-        await say(message, "Можно одной короткой фразой: что пугает больше всего?", delay=0.4)
+        await say(message, "Можно одной короткой фразой — что сейчас пугает больше всего?", delay=0.4)
         return
 
     await state.update_data(q1=txt)
@@ -243,7 +250,7 @@ async def q3(message: Message, state: FSMContext):
     await say(
         message,
         "4️⃣ Представь, что *друг или близкий человек* написал тебе это же.\n"
-        "Что бы ты ответил или ответила?\n"
+        "Что бы ты ответил(а), чтобы поддержать?\n"
         "_1–2 предложения. По-доброму._",
         delay=0.7
     )
@@ -253,7 +260,7 @@ async def q4(message: Message, state: FSMContext):
     uid = message.from_user.id
     txt = (message.text or "").strip()
     if len(txt) < 2:
-        await say(message, "Можно одной фразой — как поддержал или поддержала бы близкого человека?", delay=0.4)
+        await say(message, "Можно одной фразой — как поддержал(а) бы близкого человека?", delay=0.4)
         return
 
     data = await state.get_data()
@@ -266,43 +273,45 @@ async def q4(message: Message, state: FSMContext):
         f"🧭 *Это больше:* {data.get('q2','')}\n"
         f"👣 *Маленький шаг:* {data.get('q3','')}\n"
         f"💛 *Поддержка себе:* {txt}\n\n"
-        + t(uid, "Ты сделала или сделал важное. Продолжим?", "Ты уже помогла/помог себе. Давай закрепим?")
+        + t(uid, "Ты уже сделала/сделал важное. Продолжим?", "Ты уже помог(ла) себе. Давай закрепим?")
     )
     await say(message, summary, reply_markup=kb_nav(), delay=0.9)
 
 
-# ========= ШАГ 3: ЗАЗЕМЛЕНИЕ (медленное) =========
-
+# ==========================
+# STEP 3: GROUNDING (SLOW)
+# ==========================
 @dp.callback_query(F.data == "step:ground")
 async def cb_ground(cb: CallbackQuery):
     uid = cb.from_user.id
     header = f"🪨 *Шаг 3 из 4*  `{progress_bar(3)}`"
     text = (
         f"{header}\n\n"
-        "Немного замедлимся.\n"
-        + t(uid, "Сделай спокойный вдох… и выдох…", "Сделай спокойный вдох…\nи медленный выдох…")
-        + "\n\n"
+        "Сейчас мы возвращаем внимание в реальность, шаг за шагом.\n\n"
+        "Сделай спокойный вдох…\n"
+        "и медленный выдох…\n\n"
         "👀 **5 — что ты видишь**\n"
-        "Оглянись и найди 5 вещей.\n\n"
+        "Оглянись и найди 5 вещей. Можно тихо назвать их про себя.\n\n"
         "🤍 **4 — что ты чувствуешь физически**\n"
-        "Удобно ли сидишь/стоишь?\n"
-        "Тепло или прохладно?\n"
-        "Из какой ткани твоя одежда: мягкая, гладкая, плотная?\n\n"
+        "Удобно ли ты сидишь или стоишь?\n"
+        "Тепло тебе или прохладно?\n"
+        "Из какого материала твоя одежда — мягкая, гладкая, плотная?\n\n"
         "👂 **3 — что ты слышишь**\n"
-        "Найди 3 звука вокруг.\n\n"
+        "Найди 3 звука вокруг. Даже самые тихие.\n\n"
         "🌬 **2 — запахи**\n"
-        "Есть ли запах? Если нет — просто отметь: «нет запаха».\n\n"
+        "Есть ли запах? Если нет — просто отметь: «сейчас нет запаха».\n\n"
         "👅 **1 — вкус**\n"
         "Если вкуса нет — представь вкус свежих ягод или фруктов.\n"
-        "Сладкий? Кисловатый?\n\n"
-        "Сделай ещё один вдох… и длинный выдох.\n\n"
+        "Сладкий? Кисловатый? Прохладный?\n\n"
+        "И ещё раз: вдох… и длинный выдох…\n\n"
         + t(uid, "Ты здесь. Ты в этом моменте 💛", "Ты здесь. Волна тревоги постепенно спадает 💛")
     )
     await edit(cb, text, reply_markup=kb_nav())
 
 
-# ========= ШАГ 4: ПЛАН НА 2 МИНУТЫ =========
-
+# ==========================
+# STEP 4: PLAN (2 MIN)
+# ==========================
 @dp.callback_query(F.data == "step:plan")
 async def cb_plan(cb: CallbackQuery):
     header = f"📌 *Шаг 4 из 4*  `{progress_bar(4)}`"
@@ -316,9 +325,10 @@ async def cb_plan(cb: CallbackQuery):
 
 @dp.callback_query(F.data.startswith("plan:"))
 async def cb_plan_choice(cb: CallbackQuery):
+    uid = cb.from_user.id
     await cb.answer()
-    key = cb.data.split(":", 1)[1]
 
+    key = cb.data.split(":", 1)[1]
     if key == "water":
         msg = "🥤 Выпей воды или умойся.\nЭто простое действие помогает телу почувствовать опору."
     elif key == "air":
@@ -328,9 +338,11 @@ async def cb_plan_choice(cb: CallbackQuery):
     elif key == "facts":
         msg = (
             "📝 Давай вернём опору.\n\n"
-            "1) Запиши **3 факта**, которые точно известны (без «а вдруг»).\n"
-            "2) Выбери **1 самый маленький шаг** на ближайшие 10 минут.\n\n"
-            "Не больше одного шага. Этого достаточно 💛"
+            "**1) 3 факта (что точно известно):**\n"
+            "Без «а вдруг» — только то, что реально подтверждено.\n\n"
+            "**2) 1 следующий шаг (самый маленький):**\n"
+            "Что ты можешь сделать в ближайшие 10 минут.\n\n"
+            + t(uid, "Этого достаточно 💛", "Одного шага достаточно 💛")
         )
     else:  # timer
         msg = "⏲ Поставь таймер на 2 минуты.\nИ сделай самое простое действие из того, что выбрала."
@@ -338,12 +350,13 @@ async def cb_plan_choice(cb: CallbackQuery):
     await say(cb.message, msg, delay=0.5, reply_markup=kb_nav())
 
 
-# ========= WEB SERVER (Render порт) =========
-
+# ==========================
+# WEB SERVER (for Render port)
+# ==========================
 async def handle_root(request):
     return web.Response(text="OK")
 
-async def start_web_server():
+async def start_web_server() -> None:
     app = web.Application()
     app.router.add_get("/", handle_root)
     app.router.add_get("/health", handle_root)
@@ -351,17 +364,38 @@ async def start_web_server():
     runner = web.AppRunner(app)
     await runner.setup()
 
-    port = int(os.getenv("PORT", "10000"))
-    site = web.TCPSite(runner, host="0.0.0.0", port=port)
+    site = web.TCPSite(runner, host="0.0.0.0", port=PORT)
     await site.start()
 
-    print(f"Web server started on port {port}", flush=True)
+
+# ==========================
+# POLLING (safe loop)
+# ==========================
+async def run_polling_forever() -> None:
+    """
+    Важно: если BOT_TOKEN запущен где-то ещё, Telegram даст Conflict.
+    Мы не падаем, а ждём и пробуем снова.
+    """
+    backoff = 2
+    while True:
+        try:
+            await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+            backoff = 2  # если polling нормально завершился — сброс
+        except TelegramConflictError:
+            # Кто-то ещё держит polling. Ждём и пробуем снова.
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 60)
+        except Exception:
+            # Любая другая ошибка — тоже не убиваем процесс, чтобы порт оставался открыт.
+            await asyncio.sleep(3)
+
 
 async def main():
-    # Важно: сначала поднимаем порт, чтобы Render не таймаутился
+    # Сначала откроем порт (Render это любит),
+    # потом запускаем polling в бесконечном цикле.
     await start_web_server()
-    print("Starting bot polling...", flush=True)
-    await dp.start_polling(bot)
+    await run_polling_forever()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
