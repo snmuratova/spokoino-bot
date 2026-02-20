@@ -21,6 +21,24 @@ if not TOKEN:
     raise RuntimeError("BOT_TOKEN is not set")
 
 PORT = int(os.getenv("PORT", "10000"))
+# ==========================
+# STATS (простая аналитика в памяти)
+# ==========================
+STATS = {
+    "start": 0,
+    "menu": 0,
+    "settings": 0,
+    "theme_toggle": 0,
+
+    "step_breath": 0,
+    "step_questions": 0,
+    "step_ground": 0,
+    "step_plan": 0,
+
+    "sound_forest": 0,
+    "anxiety_open": 0,      # открыли шкалу
+    "anxiety_set": 0,       # выбрали число
+}
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
