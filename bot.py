@@ -4,15 +4,13 @@ from aiohttp import web
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ChatAction
-from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.memory import MemoryStorage
-
 from aiogram.exceptions import TelegramConflictError
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import CallbackQuery, Message, FSInputFile
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 # ==========================
@@ -27,9 +25,25 @@ PORT = int(os.getenv("PORT", "10000"))
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# Простейшие настройки на пользователя (в памяти).
-# На бесплатном Render при перезапуске могут сбрасываться.
+# На бесплатном Render может сбрасываться при перезапуске
 USER_THEME: dict[int, str] = {}  # "day" | "night"
+
+
+# ==========================
+# PATHS (AUDIO)
+# ==========================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FOREST_MP3 = os.path.join(BASE_DIR, "assets", "audio", "forest.mp3")
+FOREST_MP3_MP3 = os.path.join(BASE_DIR, "assets", "audio", "forest.mp3.mp3")
+
+
+def get_forest_audio_path() -> str | None:
+    """Поддерживаем оба варианта имени файла: forest.mp3 и forest.mp3.mp3"""
+    if os.path.exists(FOREST_MP3):
+        return FOREST_MP3
+    if os.path.exists(FOREST_MP3_MP3):
+        return FOREST_MP3_MP3
+    return None
 
 
 # ==========================
@@ -38,13 +52,16 @@ USER_THEME: dict[int, str] = {}  # "day" | "night"
 def theme(user_id: int) -> str:
     return USER_THEME.get(user_id, "night")
 
+
 def t(user_id: int, day: str, night: str) -> str:
     return night if theme(user_id) == "night" else day
+
 
 def progress_bar(step: int, total: int = 4) -> str:
     filled = "▓" * step
     empty = "░" * (total - step)
     return f"{filled}{empty}"
+
 
 async def typing(chat_id: int, seconds: float = 0.12) -> None:
     try:
@@ -53,16 +70,31 @@ async def typing(chat_id: int, seconds: float = 0.12) -> None:
     except Exception:
         pass
 
-async def say(msg: Message, text: str, *, parse_mode: str | None = "Markdown", reply_markup=None, delay: float = 0.12):
+
+async def say(
+    msg: Message,
+    text: str,
+    *,
+    parse_mode: str | None = "Markdown",
+    reply_markup=None,
+    delay: float = 0.12,
+) -> None:
     await typing(msg.chat.id, delay)
     await msg.answer(text, parse_mode=parse_mode, reply_markup=reply_markup)
 
-async def edit(cb: CallbackQuery, text: str, *, parse_mode: str | None = "Markdown", reply_markup=None):
+
+async def edit(
+    cb: CallbackQuery,
+    text: str,
+    *,
+    parse_mode: str | None = "Markdown",
+    reply_markup=None,
+) -> None:
     await cb.answer()
     try:
         await cb.message.edit_text(text, parse_mode=parse_mode, reply_markup=reply_markup)
     except Exception:
-        await say(cb.message, text, parse_mode=parse_mode, reply_markup=reply_markup, delay=0.2)
+        await say(cb.message, text, parse_mode=parse_mode, reply_markup=reply_markup, delay=0.05)
 
 
 # ==========================
@@ -74,10 +106,11 @@ def kb_main():
     kb.button(text="🧠 Шаг 2 — Разобрать тревогу", callback_data="step:questions")
     kb.button(text="🪨 Шаг 3 — Заземление", callback_data="step:ground")
     kb.button(text="📌 Шаг 4 — План на 2 минуты", callback_data="step:plan")
-    kb.button(text="🎧 Звук леса", callback_data="sound:forest")   # ← добавь это
+    kb.button(text="🎧 Звук леса", callback_data="sound:forest")
     kb.button(text="⚙️ Настройки", callback_data="settings")
     kb.adjust(1, 1, 1, 1, 1, 1)
     return kb.as_markup()
+
 
 def kb_nav():
     kb = InlineKeyboardBuilder()
@@ -85,6 +118,7 @@ def kb_nav():
     kb.button(text="🏠 Меню", callback_data="menu")
     kb.adjust(2)
     return kb.as_markup()
+
 
 def kb_settings(user_id: int):
     kb = InlineKeyboardBuilder()
@@ -95,12 +129,14 @@ def kb_settings(user_id: int):
     kb.adjust(1, 1)
     return kb.as_markup()
 
+
 def kb_now_future():
     kb = InlineKeyboardBuilder()
     kb.button(text="⏱ Это про сейчас", callback_data="aq:now")
     kb.button(text="🔮 Это про будущее", callback_data="aq:future")
     kb.adjust(1, 1)
     return kb.as_markup()
+
 
 def kb_plan():
     kb = InlineKeyboardBuilder()
@@ -136,10 +172,11 @@ async def cmd_start(message: Message, state: FSMContext):
     intro = t(
         uid,
         "Если тревожно — это нормально.\nДавай снизим напряжение шаг за шагом.",
-        "Если тревожно — ты не одна и не один.\nДавай бережно снизим напряжение шаг за шагом."
+        "Если тревожно — ты не одна и не один.\nДавай бережно снизим напряжение шаг за шагом.",
     )
 
-    await say(message, f"{title}\n\n{intro}\n\nВыбери шаг:", reply_markup=kb_main(), delay=0.6)
+    await say(message, f"{title}\n\n{intro}\n\nВыбери шаг:", reply_markup=kb_main(), delay=0.2)
+
 
 @dp.callback_query(F.data == "menu")
 async def cb_menu(cb: CallbackQuery, state: FSMContext):
@@ -148,11 +185,13 @@ async def cb_menu(cb: CallbackQuery, state: FSMContext):
     title = t(uid, "💙 *Навигатор спокойствия*", "🌙 *Навигатор спокойствия*")
     await edit(cb, f"{title}\n\nВыбери шаг:", reply_markup=kb_main())
 
+
 @dp.callback_query(F.data == "more")
 async def cb_more(cb: CallbackQuery):
     uid = cb.from_user.id
     msg = t(uid, "Продолжим. Выбери следующий шаг:", "Продолжим 💛\nВыбери следующий шаг:")
     await edit(cb, msg, reply_markup=kb_main())
+
 
 @dp.callback_query(F.data == "settings")
 async def cb_settings(cb: CallbackQuery):
@@ -161,9 +200,10 @@ async def cb_settings(cb: CallbackQuery):
         "⚙️ *Настройки*\n\n"
         "Можно переключить стиль сообщений:\n"
         "• Ночной — мягче и спокойнее\n"
-        "• Дневной — чуть короче и бодрее"
+        "• Дневной — короче и бодрее"
     )
     await edit(cb, text, reply_markup=kb_settings(uid))
+
 
 @dp.callback_query(F.data == "theme:toggle")
 async def cb_theme_toggle(cb: CallbackQuery):
@@ -171,6 +211,33 @@ async def cb_theme_toggle(cb: CallbackQuery):
     USER_THEME[uid] = "day" if theme(uid) == "night" else "night"
     cur = t(uid, "☀️ Включён дневной стиль.", "🌙 Включён ночной стиль.")
     await edit(cb, f"{cur}\n\nВыбери шаг:", reply_markup=kb_main())
+
+
+# ==========================
+# SOUND: FOREST
+# ==========================
+@dp.callback_query(F.data == "sound:forest")
+async def cb_sound_forest(cb: CallbackQuery):
+    await cb.answer()
+
+    path = get_forest_audio_path()
+    if not path:
+        await cb.message.answer(
+            "Не нашла файл звука 😕\n"
+            "Проверь, что в репозитории есть:\n"
+            "`assets/audio/forest.mp3` (или `forest.mp3.mp3`).",
+            parse_mode="Markdown",
+        )
+        return
+
+    await cb.message.answer(
+        "🎧 Включаю лесной шум.\n"
+        "Можно сделать 3 цикла: вдох 4 — выдох 6."
+    )
+    await cb.message.answer_audio(
+        audio=FSInputFile(path),
+        caption="🌲 Лесной шум",
+    )
 
 
 # ==========================
@@ -214,16 +281,18 @@ async def cb_questions_start(cb: CallbackQuery, state: FSMContext):
     )
     await edit(cb, text, reply_markup=None)
 
+
 @dp.message(AnxietyFlow.q1)
 async def q1(message: Message, state: FSMContext):
     txt = (message.text or "").strip()
     if len(txt) < 2:
-        await say(message, "Можно одной короткой фразой — что сейчас пугает больше всего?", delay=0.4)
+        await say(message, "Можно одной короткой фразой — что сейчас пугает больше всего?", delay=0.05)
         return
 
     await state.update_data(q1=txt)
     await state.set_state(AnxietyFlow.q2)
-    await say(message, "2️⃣ Это больше про *сейчас* или про *будущее*?", reply_markup=kb_now_future(), delay=0.6)
+    await say(message, "2️⃣ Это больше про *сейчас* или про *будущее*?", reply_markup=kb_now_future(), delay=0.12)
+
 
 @dp.callback_query(AnxietyFlow.q2, F.data.in_({"aq:now", "aq:future"}))
 async def q2(cb: CallbackQuery, state: FSMContext):
@@ -236,14 +305,15 @@ async def q2(cb: CallbackQuery, state: FSMContext):
         "3️⃣ Что ты можешь сделать в ближайшие 10 минут,\n"
         "чтобы стало хотя бы на *5% легче*?\n"
         "Пусть это будет маленький шаг.",
-        delay=0.6
+        delay=0.12,
     )
+
 
 @dp.message(AnxietyFlow.q3)
 async def q3(message: Message, state: FSMContext):
     txt = (message.text or "").strip()
     if len(txt) < 2:
-        await say(message, "Можно совсем маленький шаг. Что реально сделать за 10 минут?", delay=0.4)
+        await say(message, "Можно совсем маленький шаг. Что реально сделать за 10 минут?", delay=0.05)
         return
 
     await state.update_data(q3=txt)
@@ -253,15 +323,16 @@ async def q3(message: Message, state: FSMContext):
         "4️⃣ Представь, что *друг или близкий человек* написал тебе это же.\n"
         "Что бы ты ответил(а), чтобы поддержать?\n"
         "_1–2 предложения. По-доброму._",
-        delay=0.7
+        delay=0.12,
     )
+
 
 @dp.message(AnxietyFlow.q4)
 async def q4(message: Message, state: FSMContext):
     uid = message.from_user.id
     txt = (message.text or "").strip()
     if len(txt) < 2:
-        await say(message, "Можно одной фразой — как поддержал(а) бы близкого человека?", delay=0.4)
+        await say(message, "Можно одной фразой — как поддержал(а) бы близкого человека?", delay=0.05)
         return
 
     data = await state.get_data()
@@ -276,7 +347,7 @@ async def q4(message: Message, state: FSMContext):
         f"💛 *Поддержка себе:* {txt}\n\n"
         + t(uid, "Ты уже сделала/сделал важное. Продолжим?", "Ты уже помог(ла) себе. Давай закрепим?")
     )
-    await say(message, summary, reply_markup=kb_nav(), delay=0.9)
+    await say(message, summary, reply_markup=kb_nav(), delay=0.12)
 
 
 # ==========================
@@ -292,7 +363,7 @@ async def cb_ground(cb: CallbackQuery):
         "Сделай спокойный вдох…\n"
         "и медленный выдох…\n\n"
         "👀 **5 — что ты видишь**\n"
-        "Оглянись и найди 5 вещей. Можно тихо назвать их про себя.\n\n"
+        "Оглянись и найди 5 вещей. Можно назвать их про себя.\n\n"
         "🤍 **4 — что ты чувствуешь физически**\n"
         "Удобно ли ты сидишь или стоишь?\n"
         "Тепло тебе или прохладно?\n"
@@ -324,6 +395,7 @@ async def cb_plan(cb: CallbackQuery):
     )
     await edit(cb, text, reply_markup=kb_plan())
 
+
 @dp.callback_query(F.data.startswith("plan:"))
 async def cb_plan_choice(cb: CallbackQuery):
     uid = cb.from_user.id
@@ -348,7 +420,7 @@ async def cb_plan_choice(cb: CallbackQuery):
     else:  # timer
         msg = "⏲ Поставь таймер на 2 минуты.\nИ сделай самое простое действие из того, что выбрала."
 
-    await say(cb.message, msg, delay=0.5, reply_markup=kb_nav())
+    await say(cb.message, msg, delay=0.12, reply_markup=kb_nav())
 
 
 # ==========================
@@ -356,6 +428,7 @@ async def cb_plan_choice(cb: CallbackQuery):
 # ==========================
 async def handle_root(request):
     return web.Response(text="OK")
+
 
 async def start_web_server() -> None:
     app = web.Application()
@@ -374,26 +447,22 @@ async def start_web_server() -> None:
 # ==========================
 async def run_polling_forever() -> None:
     """
-    Важно: если BOT_TOKEN запущен где-то ещё, Telegram даст Conflict.
-    Мы не падаем, а ждём и пробуем снова.
+    Если BOT_TOKEN запущен где-то ещё, Telegram даст Conflict.
+    Мы не падаем — ждём и пробуем снова.
     """
     backoff = 2
     while True:
         try:
             await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
-            backoff = 2  # если polling нормально завершился — сброс
+            backoff = 2
         except TelegramConflictError:
-            # Кто-то ещё держит polling. Ждём и пробуем снова.
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 60)
         except Exception:
-            # Любая другая ошибка — тоже не убиваем процесс, чтобы порт оставался открыт.
             await asyncio.sleep(3)
 
 
 async def main():
-    # Сначала откроем порт (Render это любит),
-    # потом запускаем polling в бесконечном цикле.
     await start_web_server()
     await run_polling_forever()
 
