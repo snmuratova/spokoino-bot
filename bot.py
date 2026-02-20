@@ -311,6 +311,7 @@ async def cb_anxiety_set(cb: CallbackQuery):
 # ==========================
 @dp.callback_query(F.data == "sound:forest")
 async def cb_sound_forest(cb: CallbackQuery):
+    STATS["sound_forest"] += 1
     await cb.answer()
 
     path = get_forest_audio_path()
@@ -450,6 +451,7 @@ async def q4(message: Message, state: FSMContext):
 # ==========================
 @dp.callback_query(F.data == "step:ground")
 async def cb_ground(cb: CallbackQuery):
+    STATS["step_ground"] += 1
     uid = cb.from_user.id
     header = f"🪨 *Шаг 3 из 4*  `{progress_bar(3)}`"
     text = (
@@ -481,6 +483,7 @@ async def cb_ground(cb: CallbackQuery):
 # ==========================
 @dp.callback_query(F.data == "step:plan")
 async def cb_plan(cb: CallbackQuery):
+    STATS["step_plan"] += 1
     header = f"📌 *Шаг 4 из 4*  `{progress_bar(4)}`"
     text = (
         f"{header}\n\n"
