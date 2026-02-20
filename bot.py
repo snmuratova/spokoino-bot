@@ -154,7 +154,7 @@ def kb_plan():
 def kb_anxiety_scale():
     kb = InlineKeyboardBuilder()
     for i in range(0, 11):
-        kb.button(text=str(i), callback_data=f"anxiety:{i}")
+    kb.button(text=str(i), callback_data=f"anxiety:{i}")
     kb.adjust(6, 5)  # 0–5 в строке, 6–10 ниже
     kb.button(text="🏠 Меню", callback_data="menu")
     kb.adjust(6, 5, 1)
@@ -222,6 +222,46 @@ async def cb_theme_toggle(cb: CallbackQuery):
     USER_THEME[uid] = "day" if theme(uid) == "night" else "night"
     cur = t(uid, "☀️ Включён дневной стиль.", "🌙 Включён ночной стиль.")
     await edit(cb, f"{cur}\n\nВыбери шаг:", reply_markup=kb_main())
+    # ==========================
+# ANXIETY SCALE (0–10)
+# ==========================
+@dp.callback_query(F.data == "anxiety:scale")
+async def cb_anxiety_scale(cb: CallbackQuery):
+    text = (
+        "📊 *Шкала тревожности*\n\n"
+        "Оцени своё состояние от 0 до 10:\n\n"
+        "0 — спокойно\n"
+        "5 — заметное напряжение\n"
+        "10 — очень сильная тревога\n\n"
+        "Выбери число:"
+    )
+    await edit(cb, text, reply_markup=kb_anxiety_scale())
+
+
+@dp.callback_query(F.data.startswith("anxiety:set:"))
+async def cb_anxiety_set(cb: CallbackQuery):
+    await cb.answer()
+    value_str = cb.data.split(":")[-1]
+    try:
+        value = int(value_str)
+    except ValueError:
+        value = None
+
+    if value is None or not (0 <= value <= 10):
+        await edit(cb, "Не получилось прочитать число. Попробуй ещё раз:", reply_markup=kb_anxiety_scale())
+        return
+
+    uid = cb.from_user.id
+    # Если хочешь — можно позже сохранять в БД. Пока просто подтверждаем.
+    text = (
+        f"✅ Записала: *{value}/10*\n\n"
+        + t(
+            uid,
+            "Спасибо. Хочешь выбрать шаг, который сейчас поможет?",
+            "Спасибо 💛 Хочешь выбрать шаг, который сейчас поддержит?"
+        )
+    )
+    await edit(cb, text, reply_markup=kb_main())
 
 
 # ==========================
