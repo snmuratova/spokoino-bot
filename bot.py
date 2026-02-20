@@ -231,6 +231,7 @@ async def cmd_start(message: Message, state: FSMContext):
 @dp.callback_query(F.data == "menu")
 async def cb_menu(cb: CallbackQuery, state: FSMContext):
     await state.clear()
+    STATS["menu"] += 1
     uid = cb.from_user.id
     title = t(uid, "💙 *Навигатор спокойствия*", "🌙 *Навигатор спокойствия*")
     await edit(cb, f"{title}\n\nВыбери шаг:", reply_markup=kb_main())
