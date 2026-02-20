@@ -102,18 +102,14 @@ async def edit(
 # ==========================
 def kb_main():
     kb = InlineKeyboardBuilder()
-    kb.button(text="📊 Оценить тревожность", callback_data="anxiety:scale")
+    kb.button(text="📊 Оценить тревожность 0-10", callback_data="anxiety:scale")
     kb.button(text="🌬 Шаг 1 — Дыхание", callback_data="step:breath")
     kb.button(text="🧠 Шаг 2 — Разобрать тревогу", callback_data="step:questions")
     kb.button(text="🪨 Шаг 3 — Заземление", callback_data="step:ground")
     kb.button(text="📌 Шаг 4 — План на 2 минуты", callback_data="step:plan")
-    
-     # ✅ ШКАЛА ТРЕВОЖНОСТИ (добавили кнопку)
-    kb.button(text="📊 Шкала тревожности 0–10", callback_data="anxiety:scale")
-    
     kb.button(text="🎧 Звук леса", callback_data="sound:forest")
     kb.button(text="⚙️ Настройки", callback_data="settings")
-    kb.adjust(1, 1, 1, 1, 1, 1)
+    kb.adjust(1)
     return kb.as_markup()
 
 
