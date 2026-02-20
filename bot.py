@@ -46,14 +46,14 @@ def progress_bar(step: int, total: int = 4) -> str:
     empty = "░" * (total - step)
     return f"{filled}{empty}"
 
-async def typing(chat_id: int, seconds: float = 0.7) -> None:
+async def typing(chat_id: int, seconds: float = 0.12) -> None:
     try:
         await bot.send_chat_action(chat_id, ChatAction.TYPING)
         await asyncio.sleep(seconds)
     except Exception:
         pass
 
-async def say(msg: Message, text: str, *, parse_mode: str | None = "Markdown", reply_markup=None, delay: float = 0.7):
+async def say(msg: Message, text: str, *, parse_mode: str | None = "Markdown", reply_markup=None, delay: float = 0.12):
     await typing(msg.chat.id, delay)
     await msg.answer(text, parse_mode=parse_mode, reply_markup=reply_markup)
 
