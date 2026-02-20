@@ -28,6 +28,25 @@ dp = Dispatcher(storage=MemoryStorage())
 # На бесплатном Render может сбрасываться при перезапуске
 USER_THEME: dict[int, str] = {}  # "day" | "night"
 
+# ==========================
+# STATS (простая аналитика)
+# ==========================
+STATS = {
+    "start": 0,
+    "menu": 0,
+    "settings": 0,
+    "theme_toggle": 0,
+
+    "step_breath": 0,
+    "step_questions": 0,
+    "step_ground": 0,
+    "step_plan": 0,
+
+    "sound_forest": 0,
+
+    # шкала тревожности 0–10
+    "anxiety": {i: 0 for i in range(11)},
+}
 
 # ==========================
 # SIMPLE ANALYTICS (in memory)
