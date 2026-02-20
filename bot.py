@@ -247,6 +247,7 @@ async def cb_more(cb: CallbackQuery):
 @dp.callback_query(F.data == "settings")
 async def cb_settings(cb: CallbackQuery):
     uid = cb.from_user.id
+    STATS["settings"] += 1
     text = (
         "⚙️ *Настройки*\n\n"
         "Можно переключить стиль сообщений:\n"
@@ -259,6 +260,7 @@ async def cb_settings(cb: CallbackQuery):
 @dp.callback_query(F.data == "theme:toggle")
 async def cb_theme_toggle(cb: CallbackQuery):
     uid = cb.from_user.id
+    STATS["theme_toggle"] += 1
     USER_THEME[uid] = "day" if theme(uid) == "night" else "night"
     cur = t(uid, "☀️ Включён дневной стиль.", "🌙 Включён ночной стиль.")
     await edit(cb, f"{cur}\n\nВыбери шаг:", reply_markup=kb_main())
@@ -337,6 +339,7 @@ async def cb_sound_forest(cb: CallbackQuery):
 @dp.callback_query(F.data == "step:breath")
 async def cb_breath(cb: CallbackQuery):
     uid = cb.from_user.id
+    STATS["step_breath"] += 1
     header = f"🌬 *Шаг 1 из 4*  `{progress_bar(1)}`"
     text = (
         f"{header}\n\n"
