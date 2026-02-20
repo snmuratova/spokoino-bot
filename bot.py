@@ -361,6 +361,7 @@ async def cb_breath(cb: CallbackQuery):
 # ==========================
 @dp.callback_query(F.data == "step:questions")
 async def cb_questions_start(cb: CallbackQuery, state: FSMContext):
+    STATS["step_questions"] += 1
     uid = cb.from_user.id
     await state.clear()
     await state.set_state(AnxietyFlow.q1)
