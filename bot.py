@@ -30,6 +30,22 @@ USER_THEME: dict[int, str] = {}  # "day" | "night"
 
 
 # ==========================
+# SIMPLE ANALYTICS (in memory)
+# ==========================
+STATS = {
+    "start": 0,
+    "breath": 0,
+    "ground": 0,
+    "questions": 0,
+    "plan": 0,
+    "sound": 0,
+    "anxiety_checks": 0,
+}
+
+ANXIETY_DISTRIBUTION = {i: 0 for i in range(11)}
+
+
+# ==========================
 # PATHS (AUDIO)
 # ==========================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -109,6 +125,7 @@ def kb_main():
     kb.button(text="📌 Шаг 4 — План на 2 минуты", callback_data="step:plan")
     kb.button(text="🎧 Звук леса", callback_data="sound:forest")
     kb.button(text="⚙️ Настройки", callback_data="settings")
+    kb.button(text="📈 Статистика", callback_data="stats:view")
     kb.adjust(1)
     return kb.as_markup()
 
@@ -179,6 +196,7 @@ class AnxietyFlow(StatesGroup):
 @dp.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
+    STATS["start"] += 1
     uid = message.from_user.id
 
     title = t(uid, "💙 *Навигатор спокойствия*", "🌙 *Навигатор спокойствия*")
