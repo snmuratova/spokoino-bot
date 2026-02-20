@@ -155,7 +155,7 @@ def kb_anxiety_scale():
     kb = InlineKeyboardBuilder()
     
     for i in range(0, 11):
-    kb.button(text=str(i), callback_data=f"anxiety:{i}")
+        kb.button(text=str(i), callback_data=f"anxiety:{i}")
     
     kb.adjust(6, 5)  # 0–5 в строке, 6–10 ниже
     kb.button(text="🏠 Меню", callback_data="menu")
