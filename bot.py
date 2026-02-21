@@ -23,6 +23,10 @@ ADMIN_ID = 862407613
 
 PORT = int(os.getenv("PORT", "10000"))
 # ==========================
+# ADMIN
+# ==========================
+ADMIN_ID = 862407613  # твой Telegram ID
+# ==========================
 # STATS (простая аналитика в памяти)
 # ==========================
 STATS = {
@@ -156,15 +160,18 @@ async def edit(
 # ==========================
 def kb_main():
     kb = InlineKeyboardBuilder()
-    kb.button(text="📊 Оценить тревожность 0-10", callback_data="anxiety:scale")
+
+    kb.button(text="📊 Оценить тревожность 0–10", callback_data="anxiety:scale")
     kb.button(text="🌬 Шаг 1 — Дыхание", callback_data="step:breath")
     kb.button(text="🧠 Шаг 2 — Разобрать тревогу", callback_data="step:questions")
     kb.button(text="🪨 Шаг 3 — Заземление", callback_data="step:ground")
     kb.button(text="📌 Шаг 4 — План на 2 минуты", callback_data="step:plan")
+
     kb.button(text="🎧 Звук леса", callback_data="sound:forest")
     kb.button(text="⚙️ Настройки", callback_data="settings")
-    kb.button(text="📈 Статистика", callback_data="stats:view")
-    kb.adjust(1)
+    kb.button(text="📈 Статистика", callback_data="stats")  # кнопка статистики
+
+    kb.adjust(1, 1, 1, 1, 1, 1, 1, 1)
     return kb.as_markup()
 
 
@@ -195,6 +202,15 @@ def kb_now_future():
 
 
 def kb_plan():
+    def kb_anxiety_scale():
+    kb = InlineKeyboardBuilder()
+    # 0–10 в 2 ряда
+    for i in range(0, 11):
+        kb.button(text=str(i), callback_data=f"anxiety:{i}")
+    kb.adjust(6, 5)  # 0-5 и 6-10
+    kb.button(text="🏠 Меню", callback_data="menu")
+    kb.adjust(6, 5, 1)
+    return kb.as_markup()
     kb = InlineKeyboardBuilder()
     kb.button(text="🥤 Вода / умыться", callback_data="plan:water")
     kb.button(text="🌬 Вдох свежего воздуха", callback_data="plan:air")
