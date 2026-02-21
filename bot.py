@@ -19,40 +19,26 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
     raise RuntimeError("BOT_TOKEN is not set")
-ADMIN_ID = 862407613
 
 PORT = int(os.getenv("PORT", "10000"))
-# ==========================
-# ADMIN
-# ==========================
-ADMIN_ID = 862407613  # твой Telegram ID
-# ==========================
-# STATS (простая аналитика в памяти)
-# ==========================
-STATS = {
-    "start": 0,
-    "menu": 0,
-    "settings": 0,
-    "theme_toggle": 0,
 
-    "step_breath": 0,
-    "step_questions": 0,
-    "step_ground": 0,
-    "step_plan": 0,
+# Твой Telegram ID — статистику видишь только ты
+ADMIN_ID = 862407613
 
-    "sound_forest": 0,
-    "anxiety_open": 0,      # открыли шкалу
-    "anxiety_set": 0,       # выбрали число
-}
-
+# ==========================
+# BOT / DISPATCHER
+# ==========================
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# На бесплатном Render может сбрасываться при перезапуске
-USER_THEME: dict[int, str] = {}  # "day" | "night"
+# ==========================
+# USER PREFERENCES (memory)
+# ==========================
+USER_THEME: dict[int, str] = {}   # "day" | "night"
+LAST_ANXIETY: dict[int, int] = {} # last anxiety level 0..10
 
 # ==========================
-# STATS (простая аналитика)
+# STATS (memory)
 # ==========================
 STATS = {
     "start": 0,
@@ -60,32 +46,17 @@ STATS = {
     "settings": 0,
     "theme_toggle": 0,
 
+    "anxiety_open": 0,
+    "anxiety_set": 0,
+
     "step_breath": 0,
     "step_questions": 0,
     "step_ground": 0,
     "step_plan": 0,
 
     "sound_forest": 0,
-
-    # шкала тревожности 0–10
-    "anxiety": {i: 0 for i in range(11)},
 }
-
-# ==========================
-# SIMPLE ANALYTICS (in memory)
-# ==========================
-STATS = {
-    "start": 0,
-    "breath": 0,
-    "ground": 0,
-    "questions": 0,
-    "plan": 0,
-    "sound": 0,
-    "anxiety_checks": 0,
-}
-
 ANXIETY_DISTRIBUTION = {i: 0 for i in range(11)}
-
 
 # ==========================
 # PATHS (AUDIO)
@@ -155,29 +126,34 @@ async def edit(
         await say(cb.message, text, parse_mode=parse_mode, reply_markup=reply_markup, delay=0.05)
 
 
+def praise(uid: int) -> str:
+    return t(
+        uid,
+        "Ты молодец. Правда. Даже маленький шаг — уже движение к спокойствию.",
+        "Ты молодец. Правда.\nДаже маленький шаг — это опора, которую ты себе создаёшь.",
+    )
+
+
 # ==========================
 # KEYBOARDS
 # ==========================
 def kb_main():
     kb = InlineKeyboardBuilder()
-
-    kb.button(text="📊 Оценить тревожность 0–10", callback_data="anxiety:scale")
+    kb.button(text="📊 Оценить тревожность (0–10)", callback_data="anxiety:scale")
     kb.button(text="🌬 Шаг 1 — Дыхание", callback_data="step:breath")
     kb.button(text="🧠 Шаг 2 — Разобрать тревогу", callback_data="step:questions")
     kb.button(text="🪨 Шаг 3 — Заземление", callback_data="step:ground")
     kb.button(text="📌 Шаг 4 — План на 2 минуты", callback_data="step:plan")
-
     kb.button(text="🎧 Звук леса", callback_data="sound:forest")
     kb.button(text="⚙️ Настройки", callback_data="settings")
     kb.button(text="📈 Статистика", callback_data="stats")
-
     kb.adjust(1, 1, 1, 1, 1, 1, 1, 1)
     return kb.as_markup()
 
 
 def kb_nav():
     kb = InlineKeyboardBuilder()
-    kb.button(text="🔁 Ещё шаг", callback_data="more")
+    kb.button(text="🔁 Ещё один шаг", callback_data="more")
     kb.button(text="🏠 Меню", callback_data="menu")
     kb.adjust(2)
     return kb.as_markup()
@@ -215,15 +191,44 @@ def kb_plan():
 
 def kb_anxiety_scale():
     kb = InlineKeyboardBuilder()
-
     for i in range(0, 11):
         kb.button(text=str(i), callback_data=f"anxiety:{i}")
-
-    kb.adjust(6, 5)  # 0–5 и 6–10
+    kb.adjust(6, 5)
     kb.button(text="🏠 Меню", callback_data="menu")
     kb.adjust(6, 5, 1)
-
     return kb.as_markup()
+
+
+def kb_recommend(level: int):
+    kb = InlineKeyboardBuilder()
+
+    # Высокая тревога: быстрее всего помогает телу “сигнал безопасности”
+    if level >= 8:
+        kb.button(text="🌬 Сделать дыхание сейчас", callback_data="step:breath")
+        kb.button(text="🎧 Включить звук леса", callback_data="sound:forest")
+        kb.button(text="🥤 Вода (маленький шаг)", callback_data="plan:water")
+        kb.button(text="🪨 Заземление", callback_data="step:ground")
+        kb.adjust(1, 1, 1, 1)
+
+    # Средняя тревога: соединяем тело + ясность + действие
+    elif level >= 4:
+        kb.button(text="🌬 Дыхание", callback_data="step:breath")
+        kb.button(text="🧠 Разобрать тревогу", callback_data="step:questions")
+        kb.button(text="🪨 Заземление", callback_data="step:ground")
+        kb.button(text="📌 План на 2 минуты", callback_data="step:plan")
+        kb.adjust(1, 1, 1, 1)
+
+    # Низкая тревога: закрепляем и бережно поддерживаем
+    else:
+        kb.button(text="🪨 Заземление (медленно)", callback_data="step:ground")
+        kb.button(text="🎧 Звук леса", callback_data="sound:forest")
+        kb.button(text="📌 Маленький план", callback_data="step:plan")
+        kb.adjust(1, 1, 1)
+
+    kb.button(text="🏠 Меню", callback_data="menu")
+    kb.adjust(1, 1, 1, 1, 1)
+    return kb.as_markup()
+
 
 # ==========================
 # FSM: QUESTIONS FLOW
@@ -243,27 +248,6 @@ async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
     STATS["start"] += 1
     uid = message.from_user.id
-# ==========================
-# ADMIN STATS
-# ==========================
-@dp.message(Command("stats"))
-async def cmd_stats(message: Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-
-    text = (
-        "📊 *Статистика бота*\n\n"
-        f"👋 Запусков /start: {STATS['start']}\n"
-        f"📊 Открыли шкалу: {STATS['anxiety_open']}\n"
-        f"✅ Выбрали уровень тревоги: {STATS['anxiety_set']}\n"
-        f"🌬 Дыхание: {STATS['step_breath']}\n"
-        f"🧠 Разобрать тревогу: {STATS['step_questions']}\n"
-        f"🪨 Заземление: {STATS['step_ground']}\n"
-        f"📌 План 2 минуты: {STATS['step_plan']}\n"
-        f"🎧 Звук леса: {STATS['sound_forest']}\n"
-    )
-
-    await message.answer(text, parse_mode="Markdown")
 
     title = t(uid, "💙 *Навигатор спокойствия*", "🌙 *Навигатор спокойствия*")
     intro = t(
@@ -272,7 +256,7 @@ async def cmd_stats(message: Message):
         "Если тревожно — ты не одна и не один.\nДавай бережно снизим напряжение шаг за шагом.",
     )
 
-    await say(message, f"{title}\n\n{intro}\n\nВыбери шаг:", reply_markup=kb_main(), delay=0.2)
+    await say(message, f"{title}\n\n{intro}\n\nВыбери шаг:", reply_markup=kb_main(), delay=0.12)
 
 
 @dp.callback_query(F.data == "menu")
@@ -311,13 +295,56 @@ async def cb_theme_toggle(cb: CallbackQuery):
     USER_THEME[uid] = "day" if theme(uid) == "night" else "night"
     cur = t(uid, "☀️ Включён дневной стиль.", "🌙 Включён ночной стиль.")
     await edit(cb, f"{cur}\n\nВыбери шаг:", reply_markup=kb_main())
+
+
 # ==========================
-# ANXIETY SCALE
+# ADMIN STATS (only you)
+# ==========================
+def stats_text() -> str:
+    total = sum(ANXIETY_DISTRIBUTION.values())
+    top = sorted(ANXIETY_DISTRIBUTION.items(), key=lambda x: x[1], reverse=True)[:3]
+    top_text = ", ".join([f"{k}→{v}" for k, v in top if v > 0]) or "пока нет данных"
+
+    return (
+        "📈 *Статистика бота* (только для автора)\n\n"
+        f"👋 /start: {STATS['start']}\n"
+        f"🏠 меню: {STATS['menu']}\n"
+        f"⚙️ настройки: {STATS['settings']}\n"
+        f"🎛 стиль: {STATS['theme_toggle']}\n\n"
+        f"📊 шкала открыта: {STATS['anxiety_open']}\n"
+        f"✅ число выбрано: {STATS['anxiety_set']}\n"
+        f"📌 всего оценок: {total}\n"
+        f"🏷 чаще всего: {top_text}\n\n"
+        f"🌬 дыхание: {STATS['step_breath']}\n"
+        f"🧠 вопросы: {STATS['step_questions']}\n"
+        f"🪨 заземление: {STATS['step_ground']}\n"
+        f"📌 план: {STATS['step_plan']}\n"
+        f"🎧 звук леса: {STATS['sound_forest']}\n"
+    )
+
+
+@dp.message(Command("stats"))
+async def cmd_stats(message: Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await message.answer(stats_text(), parse_mode="Markdown")
+
+
+@dp.callback_query(F.data == "stats")
+async def cb_stats(cb: CallbackQuery):
+    await cb.answer()
+    if cb.from_user.id != ADMIN_ID:
+        await cb.message.answer("⛔️ Статистика доступна только автору.")
+        return
+    await cb.message.answer(stats_text(), parse_mode="Markdown")
+
+
+# ==========================
+# ANXIETY SCALE (0–10) -> recommendation
 # ==========================
 @dp.callback_query(F.data == "anxiety:scale")
 async def cb_anxiety_scale(cb: CallbackQuery):
     STATS["anxiety_open"] += 1
-
     text = (
         "📊 *Шкала тревожности*\n\n"
         "Оцени своё состояние от 0 до 10:\n"
@@ -333,7 +360,6 @@ async def cb_anxiety_scale(cb: CallbackQuery):
 async def cb_anxiety_set(cb: CallbackQuery):
     await cb.answer()
 
-    # чтобы этот обработчик НЕ ловил anxiety:scale
     if cb.data == "anxiety:scale":
         return
 
@@ -345,16 +371,36 @@ async def cb_anxiety_set(cb: CallbackQuery):
     if not (0 <= level <= 10):
         return
 
+    uid = cb.from_user.id
+    LAST_ANXIETY[uid] = level
     STATS["anxiety_set"] += 1
+    ANXIETY_DISTRIBUTION[level] += 1
 
-    if level <= 3:
-        msg = f"✅ Тревога сейчас *{level}/10*.\nЭто уже довольно спокойно.\nХочешь мягко закрепить состояние?"
-    elif level <= 6:
-        msg = f"💛 Тревога *{level}/10*.\nЭто ощутимо.\nДавай выберем шаг, который поможет прямо сейчас."
+    if level >= 8:
+        text = (
+            f"🫂 Ты отметила/отметил: *{level}/10*\n\n"
+            "Похоже, сейчас очень непросто.\n"
+            "Давай начнём с того, что быстрее всего помогает телу:\n"
+            "дыхание, вода, опора на реальность.\n\n"
+            f"{praise(uid)}"
+        )
+    elif level >= 4:
+        text = (
+            f"💛 Ты отметила/отметил: *{level}/10*\n\n"
+            "Тревога заметная. Это уже достаточная причина поддержать себя.\n"
+            "Сработает связка: дыхание → ясность → маленькое действие.\n\n"
+            f"{praise(uid)}"
+        )
     else:
-        msg = f"🫂 Тревога *{level}/10*.\nЭто тяжело.\nДавай начнём с дыхания — оно быстрее всего снижает напряжение тела."
+        text = (
+            f"💚 Ты отметила/отметил: *{level}/10*\n\n"
+            "Сейчас относительно спокойно.\n"
+            "Можно мягко закрепить это состояние — чтобы тревоге было сложнее разогнаться.\n\n"
+            f"{praise(uid)}"
+        )
 
-    await cb.message.answer(msg, parse_mode="Markdown", reply_markup=kb_main())
+    await cb.message.answer(text, parse_mode="Markdown", reply_markup=kb_recommend(level))
+
 
 # ==========================
 # SOUND: FOREST
@@ -374,14 +420,17 @@ async def cb_sound_forest(cb: CallbackQuery):
         )
         return
 
+    uid = cb.from_user.id
     await cb.message.answer(
         "🎧 Включаю лесной шум.\n"
-        "Можно сделать 3 цикла: вдох 4 — выдох 6."
+        "Если хочется — сделай 3 цикла: вдох 4… выдох 6.\n\n"
+        f"{praise(uid)}"
     )
     await cb.message.answer_audio(
         audio=FSInputFile(path),
         caption="🌲 Лесной шум",
     )
+    await cb.message.answer("Что сделаем дальше?", reply_markup=kb_nav())
 
 
 # ==========================
@@ -391,10 +440,11 @@ async def cb_sound_forest(cb: CallbackQuery):
 async def cb_breath(cb: CallbackQuery):
     uid = cb.from_user.id
     STATS["step_breath"] += 1
+
     header = f"🌬 *Шаг 1 из 4*  `{progress_bar(1)}`"
     text = (
         f"{header}\n\n"
-        "Когда тревога поднимается, телу помогает короткий «сигнал безопасности».\n\n"
+        "Когда тревога поднимается, телу нужен короткий, понятный сигнал безопасности.\n\n"
         "*Физиологический вздох (самый быстрый):*\n"
         "• вдох носом\n"
         "• маленький довдох (как «добавить воздуха»)\n"
@@ -402,7 +452,7 @@ async def cb_breath(cb: CallbackQuery):
         "Повтори **3–5 раз**.\n\n"
         "Если хочется более ровно:\n"
         "*4–6*: вдох на 4… выдох на 6… **8 циклов**.\n\n"
-        + t(uid, "Ты справляешься 💛", "Я рядом 💛")
+        f"{praise(uid)}"
     )
     await edit(cb, text, reply_markup=kb_nav())
 
@@ -491,7 +541,7 @@ async def q4(message: Message, state: FSMContext):
         f"🧭 *Это больше:* {data.get('q2','')}\n"
         f"👣 *Маленький шаг:* {data.get('q3','')}\n"
         f"💛 *Поддержка себе:* {txt}\n\n"
-        + t(uid, "Ты уже сделала/сделал важное. Продолжим?", "Ты уже помог(ла) себе. Давай закрепим?")
+        f"{praise(uid)}"
     )
     await say(message, summary, reply_markup=kb_nav(), delay=0.12)
 
@@ -503,6 +553,7 @@ async def q4(message: Message, state: FSMContext):
 async def cb_ground(cb: CallbackQuery):
     STATS["step_ground"] += 1
     uid = cb.from_user.id
+
     header = f"🪨 *Шаг 3 из 4*  `{progress_bar(3)}`"
     text = (
         f"{header}\n\n"
@@ -523,7 +574,7 @@ async def cb_ground(cb: CallbackQuery):
         "Если вкуса нет — представь вкус свежих ягод или фруктов.\n"
         "Сладкий? Кисловатый? Прохладный?\n\n"
         "И ещё раз: вдох… и длинный выдох…\n\n"
-        + t(uid, "Ты здесь. Ты в этом моменте 💛", "Ты здесь. Волна тревоги постепенно спадает 💛")
+        f"{praise(uid)}"
     )
     await edit(cb, text, reply_markup=kb_nav())
 
@@ -534,6 +585,8 @@ async def cb_ground(cb: CallbackQuery):
 @dp.callback_query(F.data == "step:plan")
 async def cb_plan(cb: CallbackQuery):
     STATS["step_plan"] += 1
+    uid = cb.from_user.id
+
     header = f"📌 *Шаг 4 из 4*  `{progress_bar(4)}`"
     text = (
         f"{header}\n\n"
@@ -551,11 +604,25 @@ async def cb_plan_choice(cb: CallbackQuery):
 
     key = cb.data.split(":", 1)[1]
     if key == "water":
-        msg = "🥤 Выпей воды или умойся.\nЭто простое действие помогает телу почувствовать опору."
+        msg = (
+            "🥤 Выпей воды или умойся.\n"
+            "Это простое действие возвращает телу ощущение опоры.\n\n"
+            f"{praise(uid)}"
+        )
     elif key == "air":
-        msg = "🌬 Сделай глубокий вдох свежего воздуха…\nи длинный выдох.\nПовтори 3 раза."
+        msg = (
+            "🌬 Сделай глубокий вдох свежего воздуха…\n"
+            "и длинный выдох.\n"
+            "Повтори 3 раза.\n\n"
+            f"{praise(uid)}"
+        )
     elif key == "message":
-        msg = "💬 Не обязательно справляться с этим в одиночку.\nНапиши: «мне сейчас тревожно, можно 2 минуты поговорить?»"
+        msg = (
+            "💬 Не обязательно справляться с этим в одиночку.\n"
+            "Можно написать близкому:\n"
+            "«Мне сейчас тревожно, можно 2 минуты поговорить?»\n\n"
+            f"{praise(uid)}"
+        )
     elif key == "facts":
         msg = (
             "📝 Давай вернём опору.\n\n"
@@ -563,16 +630,29 @@ async def cb_plan_choice(cb: CallbackQuery):
             "Без «а вдруг» — только то, что реально подтверждено.\n\n"
             "**2) 1 следующий шаг (самый маленький):**\n"
             "Что ты можешь сделать в ближайшие 10 минут.\n\n"
-            + t(uid, "Этого достаточно 💛", "Одного шага достаточно 💛")
+            "Одного шага достаточно.\n\n"
+            f"{praise(uid)}"
         )
     else:  # timer
-        msg = "⏲ Поставь таймер на 2 минуты.\nИ сделай самое простое действие из того, что выбрала."
+        msg = (
+            "⏲ Поставь таймер на 2 минуты.\n"
+            "И сделай самое простое действие из того, что выбрала/выбрал.\n\n"
+            f"{praise(uid)}"
+        )
 
     await say(cb.message, msg, delay=0.12, reply_markup=kb_nav())
 
 
 # ==========================
-# WEB SERVER (for Render port)
+# FALLBACK: stop endless "Loading..."
+# ==========================
+@dp.callback_query()
+async def cb_unknown(cb: CallbackQuery):
+    await cb.answer("Эта кнопка пока не подключена 🙏 Нажми /start", show_alert=False)
+
+
+# ==========================
+# WEB SERVER (Render port)
 # ==========================
 async def handle_root(request):
     return web.Response(text="OK")
@@ -594,10 +674,6 @@ async def start_web_server() -> None:
 # POLLING (safe loop)
 # ==========================
 async def run_polling_forever() -> None:
-    """
-    Если BOT_TOKEN запущен где-то ещё, Telegram даст Conflict.
-    Мы не падаем — ждём и пробуем снова.
-    """
     backoff = 2
     while True:
         try:
