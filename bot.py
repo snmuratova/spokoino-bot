@@ -326,7 +326,6 @@ async def cb_anxiety_scale(cb: CallbackQuery):
         "10 — очень сильная тревога\n\n"
         "Выбери число:"
     )
-
     await edit(cb, text, reply_markup=kb_anxiety_scale())
 
 
@@ -334,62 +333,28 @@ async def cb_anxiety_scale(cb: CallbackQuery):
 async def cb_anxiety_set(cb: CallbackQuery):
     await cb.answer()
 
+    # чтобы этот обработчик НЕ ловил anxiety:scale
+    if cb.data == "anxiety:scale":
+        return
+
     try:
         level = int(cb.data.split(":", 1)[1])
-    except:
+    except ValueError:
+        return
+
+    if not (0 <= level <= 10):
         return
 
     STATS["anxiety_set"] += 1
 
     if level <= 3:
-        msg = f"✅ Тревога сейчас {level}/10.\nХороший уровень. Можно мягко закрепить состояние."
+        msg = f"✅ Тревога сейчас *{level}/10*.\nЭто уже довольно спокойно.\nХочешь мягко закрепить состояние?"
     elif level <= 6:
-        msg = f"💛 Тревога {level}/10.\nЭто ощутимо, но с этим можно работать."
+        msg = f"💛 Тревога *{level}/10*.\nЭто ощутимо.\nДавай выберем шаг, который поможет прямо сейчас."
     else:
-        msg = f"🫂 Тревога {level}/10.\nЭто тяжело. Давай начнём с дыхания."
+        msg = f"🫂 Тревога *{level}/10*.\nЭто тяжело.\nДавай начнём с дыхания — оно быстрее всего снижает напряжение тела."
 
-    await cb.message.answer(msg, reply_markup=kb_main())
-# ==========================
-# ANXIETY SCALE (0–10)
-# ==========================
-@dp.callback_query(F.data == "anxiety:scale")
-async def cb_anxiety_scale(cb: CallbackQuery):
-    text = (
-        "📊 *Шкала тревожности*\n\n"
-        "Оцени своё состояние от 0 до 10:\n\n"
-        "0 — спокойно\n"
-        "5 — заметное напряжение\n"
-        "10 — очень сильная тревога\n\n"
-        "Выбери число:"
-    )
-    await edit(cb, text, reply_markup=kb_anxiety_scale())
-
-
-@dp.callback_query(F.data.startswith("anxiety:set:"))
-async def cb_anxiety_set(cb: CallbackQuery):
-    await cb.answer()
-    value_str = cb.data.split(":")[-1]
-    try:
-        value = int(value_str)
-    except ValueError:
-        value = None
-
-    if value is None or not (0 <= value <= 10):
-        await edit(cb, "Не получилось прочитать число. Попробуй ещё раз:", reply_markup=kb_anxiety_scale())
-        return
-
-    uid = cb.from_user.id
-    # Если хочешь — можно позже сохранять в БД. Пока просто подтверждаем.
-    text = (
-        f"✅ Записала: *{value}/10*\n\n"
-        + t(
-            uid,
-            "Спасибо. Хочешь выбрать шаг, который сейчас поможет?",
-            "Спасибо 💛 Хочешь выбрать шаг, который сейчас поддержит?"
-        )
-    )
-    await edit(cb, text, reply_markup=kb_main())
-
+    await cb.message.answer(msg, parse_mode="Markdown", reply_markup=kb_main())
 
 # ==========================
 # SOUND: FOREST
