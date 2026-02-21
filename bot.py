@@ -19,6 +19,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
     raise RuntimeError("BOT_TOKEN is not set")
+ADMIN_ID = 862407613
 
 PORT = int(os.getenv("PORT", "10000"))
 # ==========================
@@ -235,6 +236,27 @@ async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
     STATS["start"] += 1
     uid = message.from_user.id
+# ==========================
+# ADMIN STATS
+# ==========================
+@dp.message(Command("stats"))
+async def cmd_stats(message: Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    text = (
+        "📊 *Статистика бота*\n\n"
+        f"👋 Запусков /start: {STATS['start']}\n"
+        f"📊 Открыли шкалу: {STATS['anxiety_open']}\n"
+        f"✅ Выбрали уровень тревоги: {STATS['anxiety_set']}\n"
+        f"🌬 Дыхание: {STATS['step_breath']}\n"
+        f"🧠 Разобрать тревогу: {STATS['step_questions']}\n"
+        f"🪨 Заземление: {STATS['step_ground']}\n"
+        f"📌 План 2 минуты: {STATS['step_plan']}\n"
+        f"🎧 Звук леса: {STATS['sound_forest']}\n"
+    )
+
+    await message.answer(text, parse_mode="Markdown")
 
     title = t(uid, "💙 *Навигатор спокойствия*", "🌙 *Навигатор спокойствия*")
     intro = t(
@@ -282,7 +304,7 @@ async def cb_theme_toggle(cb: CallbackQuery):
     USER_THEME[uid] = "day" if theme(uid) == "night" else "night"
     cur = t(uid, "☀️ Включён дневной стиль.", "🌙 Включён ночной стиль.")
     await edit(cb, f"{cur}\n\nВыбери шаг:", reply_markup=kb_main())
-    # ==========================
+# ==========================
 # ANXIETY SCALE (0–10)
 # ==========================
 @dp.callback_query(F.data == "anxiety:scale")
