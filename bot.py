@@ -169,7 +169,7 @@ def kb_main():
 
     kb.button(text="🎧 Звук леса", callback_data="sound:forest")
     kb.button(text="⚙️ Настройки", callback_data="settings")
-    kb.button(text="📈 Статистика", callback_data="stats")  # кнопка статистики
+    kb.button(text="📈 Статистика", callback_data="stats")
 
     kb.adjust(1, 1, 1, 1, 1, 1, 1, 1)
     return kb.as_markup()
@@ -202,15 +202,6 @@ def kb_now_future():
 
 
 def kb_plan():
-    def kb_anxiety_scale():
-    kb = InlineKeyboardBuilder()
-    # 0–10 в 2 ряда
-    for i in range(0, 11):
-        kb.button(text=str(i), callback_data=f"anxiety:{i}")
-    kb.adjust(6, 5)  # 0-5 и 6-10
-    kb.button(text="🏠 Меню", callback_data="menu")
-    kb.adjust(6, 5, 1)
-    return kb.as_markup()
     kb = InlineKeyboardBuilder()
     kb.button(text="🥤 Вода / умыться", callback_data="plan:water")
     kb.button(text="🌬 Вдох свежего воздуха", callback_data="plan:air")
@@ -221,18 +212,18 @@ def kb_plan():
     kb.adjust(1)
     return kb.as_markup()
 
-    
+
 def kb_anxiety_scale():
     kb = InlineKeyboardBuilder()
-    
+
     for i in range(0, 11):
         kb.button(text=str(i), callback_data=f"anxiety:{i}")
-    
-    kb.adjust(6, 5)  # 0–5 в строке, 6–10 ниже
+
+    kb.adjust(6, 5)  # 0–5 и 6–10
     kb.button(text="🏠 Меню", callback_data="menu")
     kb.adjust(6, 5, 1)
-    return kb.as_markup()
 
+    return kb.as_markup()
 
 # ==========================
 # FSM: QUESTIONS FLOW
@@ -320,6 +311,44 @@ async def cb_theme_toggle(cb: CallbackQuery):
     USER_THEME[uid] = "day" if theme(uid) == "night" else "night"
     cur = t(uid, "☀️ Включён дневной стиль.", "🌙 Включён ночной стиль.")
     await edit(cb, f"{cur}\n\nВыбери шаг:", reply_markup=kb_main())
+# ==========================
+# ANXIETY SCALE
+# ==========================
+@dp.callback_query(F.data == "anxiety:scale")
+async def cb_anxiety_scale(cb: CallbackQuery):
+    STATS["anxiety_open"] += 1
+
+    text = (
+        "📊 *Шкала тревожности*\n\n"
+        "Оцени своё состояние от 0 до 10:\n"
+        "0 — спокойно\n"
+        "5 — заметное напряжение\n"
+        "10 — очень сильная тревога\n\n"
+        "Выбери число:"
+    )
+
+    await edit(cb, text, reply_markup=kb_anxiety_scale())
+
+
+@dp.callback_query(F.data.startswith("anxiety:"))
+async def cb_anxiety_set(cb: CallbackQuery):
+    await cb.answer()
+
+    try:
+        level = int(cb.data.split(":", 1)[1])
+    except:
+        return
+
+    STATS["anxiety_set"] += 1
+
+    if level <= 3:
+        msg = f"✅ Тревога сейчас {level}/10.\nХороший уровень. Можно мягко закрепить состояние."
+    elif level <= 6:
+        msg = f"💛 Тревога {level}/10.\nЭто ощутимо, но с этим можно работать."
+    else:
+        msg = f"🫂 Тревога {level}/10.\nЭто тяжело. Давай начнём с дыхания."
+
+    await cb.message.answer(msg, reply_markup=kb_main())
 # ==========================
 # ANXIETY SCALE (0–10)
 # ==========================
