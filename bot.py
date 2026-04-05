@@ -55,6 +55,7 @@ STATS = {
     "step_plan": 0,
 
     "sound_forest": 0,
+    "about_creators": 0,
 }
 ANXIETY_DISTRIBUTION = {i: 0 for i in range(11)}
 
@@ -145,9 +146,10 @@ def kb_main():
     kb.button(text="🪨 Шаг 3 — Заземление", callback_data="step:ground")
     kb.button(text="📌 Шаг 4 — План на 2 минуты", callback_data="step:plan")
     kb.button(text="🎧 Звук леса", callback_data="sound:forest")
-    kb.button(text="⚙️ Настройки", callback_data="settings")
+    kb.button(text="👩‍💻 О создателях бота", callback_data="about:creators")
     kb.button(text="📈 Статистика", callback_data="stats")
-    kb.adjust(1, 1, 1, 1, 1, 1, 1, 1)
+    kb.button(text="⚙️ Настройки", callback_data="settings")
+    kb.adjust(1, 1, 1, 1, 1, 1, 1, 1, 1)
     return kb.as_markup()
 
 
@@ -202,15 +204,13 @@ def kb_anxiety_scale():
 def kb_recommend(level: int):
     kb = InlineKeyboardBuilder()
 
-    # Высокая тревога: быстрее всего помогает телу “сигнал безопасности”
     if level >= 8:
         kb.button(text="🌬 Сделать дыхание сейчас", callback_data="step:breath")
         kb.button(text="🎧 Включить звук леса", callback_data="sound:forest")
-        kb.button(text="🥤 Вода (маленький шаг)", callback_data="plan:water")
+        kb.button(text="🥤 Выпить воды", callback_data="plan:water")
         kb.button(text="🪨 Заземление", callback_data="step:ground")
         kb.adjust(1, 1, 1, 1)
 
-    # Средняя тревога: соединяем тело + ясность + действие
     elif level >= 4:
         kb.button(text="🌬 Дыхание", callback_data="step:breath")
         kb.button(text="🧠 Разобрать тревогу", callback_data="step:questions")
@@ -218,7 +218,6 @@ def kb_recommend(level: int):
         kb.button(text="📌 План на 2 минуты", callback_data="step:plan")
         kb.adjust(1, 1, 1, 1)
 
-    # Низкая тревога: закрепляем и бережно поддерживаем
     else:
         kb.button(text="🪨 Заземление (медленно)", callback_data="step:ground")
         kb.button(text="🎧 Звук леса", callback_data="sound:forest")
@@ -247,25 +246,34 @@ class AnxietyFlow(StatesGroup):
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
     STATS["start"] += 1
-    uid = message.from_user.id
 
-    title = t(uid, "💙 *Навигатор спокойствия*", "🌙 *Навигатор спокойствия*")
-    intro = t(
-        uid,
-        "Если тревожно — это нормально.\nДавай снизим напряжение шаг за шагом.",
-        "Если тревожно — ты не одна и не один.\nДавай бережно снизим напряжение шаг за шагом.",
+    text = (
+        "🌿 *Добро пожаловать*\n\n"
+        "Это бесплатное пространство поддержки.\n"
+        "Здесь можно замедлиться, выдохнуть и чуть бережнее отнестись к себе.\n\n"
+        "Если сейчас есть тревога, напряжение или усталость —\n"
+        "ты не один(а).\n\n"
+        "Выбери, с чего хочешь начать 👇"
     )
 
-    await say(message, f"{title}\n\n{intro}\n\nВыбери шаг:", reply_markup=kb_main(), delay=0.12)
+    await say(message, text, reply_markup=kb_main(), delay=0.12)
 
 
 @dp.callback_query(F.data == "menu")
 async def cb_menu(cb: CallbackQuery, state: FSMContext):
     await state.clear()
     STATS["menu"] += 1
-    uid = cb.from_user.id
-    title = t(uid, "💙 *Навигатор спокойствия*", "🌙 *Навигатор спокойствия*")
-    await edit(cb, f"{title}\n\nВыбери шаг:", reply_markup=kb_main())
+
+    text = (
+        "🌿 *Добро пожаловать*\n\n"
+        "Это бесплатное пространство поддержки.\n"
+        "Здесь можно замедлиться, выдохнуть и чуть бережнее отнестись к себе.\n\n"
+        "Если сейчас есть тревога, напряжение или усталость —\n"
+        "ты не один(а).\n\n"
+        "Выбери, с чего хочешь начать 👇"
+    )
+
+    await edit(cb, text, reply_markup=kb_main())
 
 
 @dp.callback_query(F.data == "more")
@@ -297,6 +305,30 @@ async def cb_theme_toggle(cb: CallbackQuery):
     await edit(cb, f"{cur}\n\nВыбери шаг:", reply_markup=kb_main())
 
 
+@dp.callback_query(F.data == "about:creators")
+async def cb_about_creators(cb: CallbackQuery):
+    STATS["about_creators"] += 1
+    text = (
+        "👩‍💻 *О создателях бота*\n\n"
+        "Этот бот — результат творческой и бережной работы команды.\n\n"
+        "🧠 *Психологическая концепция и тексты*\n"
+        "Светлана — психолог\n"
+        "@muratovablog\n\n"
+        "💻 *Программная разработка*\n"
+        "Михаил\n"
+        "@mishaguber\n\n"
+        "🎨 *Визуальный стиль и дизайн карт*\n"
+        "Софья\n"
+        "@O11111111O1\n\n"
+        "🌿\n"
+        "Этот бот создан как инструмент поддержки.\n"
+        "Его задача — помочь замедлиться,\n"
+        "снизить тревогу и сделать маленький шаг к устойчивости.\n\n"
+        "Спасибо, что вы здесь 💛"
+    )
+    await edit(cb, text, reply_markup=kb_main())
+
+
 # ==========================
 # ADMIN STATS (only you)
 # ==========================
@@ -310,7 +342,8 @@ def stats_text() -> str:
         f"👋 /start: {STATS['start']}\n"
         f"🏠 меню: {STATS['menu']}\n"
         f"⚙️ настройки: {STATS['settings']}\n"
-        f"🎛 стиль: {STATS['theme_toggle']}\n\n"
+        f"🎛 стиль: {STATS['theme_toggle']}\n"
+        f"👩‍💻 о создателях: {STATS['about_creators']}\n\n"
         f"📊 шкала открыта: {STATS['anxiety_open']}\n"
         f"✅ число выбрано: {STATS['anxiety_set']}\n"
         f"📌 всего оценок: {total}\n"
@@ -381,7 +414,7 @@ async def cb_anxiety_set(cb: CallbackQuery):
             f"🫂 Ты отметила/отметил: *{level}/10*\n\n"
             "Похоже, сейчас очень непросто.\n"
             "Давай начнём с того, что быстрее всего помогает телу:\n"
-            "дыхание, вода, опора на реальность.\n\n"
+            "дыхание, вода, звук природы и опора на реальность.\n\n"
             f"{praise(uid)}"
         )
     elif level >= 4:
@@ -585,7 +618,6 @@ async def cb_ground(cb: CallbackQuery):
 @dp.callback_query(F.data == "step:plan")
 async def cb_plan(cb: CallbackQuery):
     STATS["step_plan"] += 1
-    uid = cb.from_user.id
 
     header = f"📌 *Шаг 4 из 4*  `{progress_bar(4)}`"
     text = (
@@ -652,7 +684,7 @@ async def cb_unknown(cb: CallbackQuery):
 
 
 # ==========================
-# WEB SERVER (Render port)
+# WEB SERVER
 # ==========================
 async def handle_root(request):
     return web.Response(text="OK")
