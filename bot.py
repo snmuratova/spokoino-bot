@@ -156,29 +156,32 @@ def kb_start(user_id: int):
     return kb.as_markup()
 
 
-def kb_main(user_id: int):
+def kb_support():
     kb = InlineKeyboardBuilder()
-    kb.button(text="📊 Оценить тревожность (0–10)", callback_data="anxiety:scale")
-    kb.button(text="🌬 Шаг 1 — Дыхание", callback_data="step:breath")
-    kb.button(text="🧠 Шаг 2 — Разобрать тревогу", callback_data="step:questions")
-    kb.button(text="🪨 Шаг 3 — Заземление", callback_data="step:ground")
-    kb.button(text="📌 Шаг 4 — План на 2 минуты", callback_data="step:plan")
-    kb.button(text="🎧 Звук леса", callback_data="sound:forest")
-    kb.button(text="👩‍💻 О создателях бота", callback_data="about:creators")
-    kb.button(text="⚙️ Настройки", callback_data="settings")
-
-    if user_id == ADMIN_ID:
-        kb.button(text="📈 Статистика", callback_data="stats")
-
-    kb.adjust(1, 1, 1, 1, 1, 1, 1, 1, 1)
+    kb.button(text="⚡ Быстрая помощь", callback_data="support:fast")
+    kb.button(text="🌿 Спокойная поддержка", callback_data="support:slow")
+    kb.button(text="🏠 В начало", callback_data="menu")
+    kb.adjust(1, 1, 1)
     return kb.as_markup()
 
 
-def kb_nav():
+def kb_steps():
     kb = InlineKeyboardBuilder()
-    kb.button(text="🔁 Ещё один шаг", callback_data="more")
+    kb.button(text="🌬 Дыхание", callback_data="step:breath")
+    kb.button(text="🧠 Разобрать тревогу", callback_data="step:questions")
+    kb.button(text="🪨 Заземление", callback_data="step:ground")
+    kb.button(text="📌 План на 2 минуты", callback_data="step:plan")
+    kb.button(text="🎧 Звук леса", callback_data="sound:forest")
     kb.button(text="🏠 В начало", callback_data="menu")
-    kb.adjust(2)
+    kb.adjust(1, 1, 1, 1, 1, 1)
+    return kb.as_markup()
+
+
+def kb_after_step():
+    kb = InlineKeyboardBuilder()
+    kb.button(text="➡️ Следующий шаг", callback_data="more")
+    kb.button(text="🏠 В начало", callback_data="menu")
+    kb.adjust(1, 1)
     return kb.as_markup()
 
 
@@ -247,15 +250,6 @@ def kb_recommend(level: int):
 
     kb.button(text="🏠 В начало", callback_data="menu")
     kb.adjust(1, 1, 1, 1, 1)
-    return kb.as_markup()
-
-
-def kb_support():
-    kb = InlineKeyboardBuilder()
-    kb.button(text="⚡ Быстрая помощь", callback_data="support:fast")
-    kb.button(text="🌿 Спокойная поддержка", callback_data="support:slow")
-    kb.button(text="🏠 В начало", callback_data="menu")
-    kb.adjust(1, 1, 1)
     return kb.as_markup()
 
 
