@@ -146,7 +146,7 @@ def praise(uid: int) -> str:
 def kb_start(user_id: int):
     kb = InlineKeyboardBuilder()
     kb.button(text="📊 Оценить состояние", callback_data="start:anxiety")
-    kb.button(text="🫂 Получить поддержку", callback_data="start:support")
+    kb.button(text="💚 Получить поддержку", callback_data="start:support")
     kb.button(text="👩‍💻 О создателях", callback_data="about:creators")
 
     if user_id == ADMIN_ID:
@@ -168,8 +168,8 @@ def kb_support():
 def kb_steps():
     kb = InlineKeyboardBuilder()
     kb.button(text="🌬 Дыхание", callback_data="step:breath")
-    kb.button(text="🧠 Разобрать тревогу", callback_data="step:questions")
-    kb.button(text="🪨 Заземление", callback_data="step:ground")
+    kb.button(text="💭 Разобрать тревогу", callback_data="step:questions")
+    kb.button(text="🌳 Заземление", callback_data="step:ground")
     kb.button(text="📌 План на 2 минуты", callback_data="step:plan")
     kb.button(text="🎧 Звук леса", callback_data="sound:forest")
     kb.button(text="🏠 В начало", callback_data="menu")
@@ -205,7 +205,7 @@ def kb_now_future():
 
 def kb_plan():
     kb = InlineKeyboardBuilder()
-    kb.button(text="🥤 Вода / умыться", callback_data="plan:water")
+    kb.button(text="💧 Вода / умыться", callback_data="plan:water")
     kb.button(text="🌬 Вдох свежего воздуха", callback_data="plan:air")
     kb.button(text="💬 Написать близкому", callback_data="plan:message")
     kb.button(text="📝 3 факта → 1 шаг", callback_data="plan:facts")
@@ -232,18 +232,18 @@ def kb_recommend(level: int):
         kb.button(text="🌬 Сделать дыхание сейчас", callback_data="step:breath")
         kb.button(text="🎧 Включить звук леса", callback_data="sound:forest")
         kb.button(text="🥤 Выпить воды", callback_data="plan:water")
-        kb.button(text="🪨 Заземление", callback_data="step:ground")
+        kb.button(text="🌳 Заземление", callback_data="step:ground")
         kb.adjust(1, 1, 1, 1)
 
     elif level >= 4:
         kb.button(text="🌬 Дыхание", callback_data="step:breath")
-        kb.button(text="🧠 Разобрать тревогу", callback_data="step:questions")
-        kb.button(text="🪨 Заземление", callback_data="step:ground")
+        kb.button(text="💭 Разобрать тревогу", callback_data="step:questions")
+        kb.button(text="🌳 Заземление", callback_data="step:ground")
         kb.button(text="📌 План на 2 минуты", callback_data="step:plan")
         kb.adjust(1, 1, 1, 1)
 
     else:
-        kb.button(text="🪨 Заземление", callback_data="step:ground")
+        kb.button(text="🌳 Заземление", callback_data="step:ground")
         kb.button(text="🎧 Звук леса", callback_data="sound:forest")
         kb.button(text="📌 План на 2 минуты", callback_data="step:plan")
         kb.adjust(1, 1, 1)
@@ -284,7 +284,8 @@ async def cmd_start(message: Message, state: FSMContext):
     USERS_SEEN.add(message.from_user.id)
 
     text = (
-        "🌿 *Пространство спокойствия*\n\n"
+        "🌿 *Добро пожаловать*\n\n"
+        "*Пространство спокойствия*\n\n"
         "Это бесплатное пространство поддержки для моментов тревоги, усталости и внутреннего напряжения.\n\n"
         "Здесь не нужно справляться со всем сразу.\n"
         "Можно начать с одного шага — и этого уже достаточно.\n\n"
@@ -347,7 +348,7 @@ async def cb_start_anxiety(cb: CallbackQuery):
     USERS_SEEN.add(cb.from_user.id)
     STATS["anxiety_open"] += 1
     text = (
-        "📊 Давай мягко посмотрим, как ты сейчас.\n\n"
+        "📊 Почувствуй, как ты сейчас.\n\n"
         "Оцени своё состояние от 0 до 10:\n\n"
         "0 — спокойно\n"
         "5 — заметное напряжение\n"
@@ -361,7 +362,7 @@ async def cb_start_anxiety(cb: CallbackQuery):
 async def cb_start_support(cb: CallbackQuery):
     USERS_SEEN.add(cb.from_user.id)
     text = (
-        "🫂 Я рядом.\n\n"
+        "💚 Я рядом.\n\n"
         "Давай выберем формат поддержки:\n\n"
         "⚡ Быстрая помощь — если сейчас очень тревожно\n"
         "🌿 Спокойная поддержка — если хочется пройти путь шаг за шагом"
@@ -381,8 +382,8 @@ async def cb_support_fast(cb: CallbackQuery):
     kb = InlineKeyboardBuilder()
     kb.button(text="🌬 Дыхание", callback_data="step:breath")
     kb.button(text="🎧 Звук леса", callback_data="sound:forest")
-    kb.button(text="🥤 Вода", callback_data="plan:water")
-    kb.button(text="🪨 Заземление", callback_data="step:ground")
+    kb.button(text="💧 Вода", callback_data="plan:water")
+    kb.button(text="🌳 Заземление", callback_data="step:ground")
     kb.button(text="🏠 В начало", callback_data="menu")
     kb.adjust(1)
 
@@ -395,7 +396,7 @@ async def cb_support_slow(cb: CallbackQuery):
     text = (
         "🌿 Спокойная поддержка\n\n"
         "Давай пойдём шаг за шагом.\n\n"
-        "Сначала мягко оценим состояние,\n"
+        "Сначала оценим состояние,\n"
         "потом разберём тревогу и найдём опору.\n\n"
         "Ты не одна/не один в этом."
     )
@@ -411,7 +412,7 @@ async def cb_about_creators(cb: CallbackQuery):
         "Этот бот — результат творческой и бережной работы команды.\n\n"
         "Он создан как пространство поддержки:\n"
         "чтобы человек мог замедлиться, снизить тревогу и сделать шаг к внутренней устойчивости.\n\n"
-        "🧠 *Психологическая концепция и тексты*\n"
+        "🤗 *Психологическая концепция и тексты*\n"
         "Светлана — психолог\n"
         "@muratovablog\n\n"
         "💻 *Программная разработка*\n"
@@ -481,7 +482,7 @@ def stats_text() -> str:
         f"✅ Выбрали уровень: {STATS['anxiety_set']}\n"
         f"📌 Всего оценок тревожности: {total}\n\n"
         f"🌬 Дыхание: {STATS['step_breath']}\n"
-        f"🧠 Разобрать тревогу: {STATS['step_questions']}\n"
+        f"💭 Разобрать тревогу: {STATS['step_questions']}\n"
         f"🪨 Заземление: {STATS['step_ground']}\n"
         f"📌 План: {STATS['step_plan']}\n"
         f"🎧 Звук леса: {STATS['sound_forest']}\n\n"
@@ -549,7 +550,7 @@ async def cb_anxiety_set(cb: CallbackQuery):
 
     if level >= 7:
         text = (
-            f"🫂 Ты отметила/отметил: *{level}/10*\n\n"
+            f"🧡 Ты отметила/отметил: *{level}/10*\n\n"
             "Похоже, сейчас очень непросто.\n"
             "Давай начнём с того, что быстрее всего помогает телу:\n"
             "дыхание, вода, звук природы и опора на реальность.\n\n"
@@ -796,7 +797,7 @@ async def cb_ground(cb: CallbackQuery):
     uid = cb.from_user.id
     USERS_SEEN.add(uid)
 
-    header = f"🪨 *Шаг 3 из 4*  `{progress_bar(3)}`"
+    header = f"🌳 *Шаг 3 из 4*  `{progress_bar(3)}`"
     text = (
         f"{header}\n\n"
         "Сейчас мы возвращаем внимание в реальность, шаг за шагом.\n\n"
@@ -812,7 +813,7 @@ async def cb_ground(cb: CallbackQuery):
         "Найди 3 звука вокруг. Даже самые тихие.\n\n"
         "🌬 **2 — запахи**\n"
         "Есть ли запах? Если нет — просто отметь: «сейчас нет запаха».\n\n"
-        "👅 **1 — вкус**\n"
+        "🫐 **1 — вкус**\n"
         "Если вкуса нет — представь вкус свежих ягод или фруктов.\n"
         "Сладкий? Кисловатый? Прохладный?\n\n"
         "И ещё раз: вдох… и длинный выдох…\n\n"
@@ -849,7 +850,7 @@ async def cb_plan_choice(cb: CallbackQuery):
     key = cb.data.split(":", 1)[1]
     if key == "water":
         msg = (
-            "🥤 Выпей воды или умойся.\n"
+            "💧 Выпей воды или умойся.\n"
             "Это простое действие возвращает телу ощущение опоры.\n\n"
             f"{praise(uid)}\n\n"
             "Это уже важный шаг.\nХочешь продолжить или остановимся здесь?"
