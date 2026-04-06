@@ -256,7 +256,7 @@ def kb_start(user_id: int):
 
 def kb_cards_open():
     kb = InlineKeyboardBuilder()
-    kb.button(text="🌿 Открыть карты дня", url=CARDS_URL)
+    kb.button(text="🌿 Образ дня", url=CARDS_URL)
     kb.button(text="💚 Вернуться к поддержке", callback_data="start:support")
     kb.button(text="🏠 В начало", callback_data="menu")
     kb.adjust(1, 1, 1)
