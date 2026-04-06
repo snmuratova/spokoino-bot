@@ -425,7 +425,7 @@ def stats_text() -> str:
         f"📌 План: {STATS['step_plan']}\n"
         f"🎧 Звук леса: {STATS['sound_forest']}\n\n"
         f"🏆 Самый популярный шаг: {top_step}\n\n"
-        f"🌿 Карта дня: {STATS['cards_open']}\n\n"
+        f"🌿 Образ дня: {STATS['cards_open']}\n\n"
         f"🔗 О создателях:\n"
         f"Светлана: {STATS['creator_svetlana']}\n"
         f"Михаил: {STATS['creator_mikhail']}\n"
@@ -766,7 +766,7 @@ async def cb_breath(cb: CallbackQuery):
     header = f"🌬 <b>Шаг 1 из 4</b>  <code>{progress_bar(1)}</code>"
     text = (
         f"{header}\n\n"
-        "Когда тревога поднимается, телу нужен короткий, понятный сигнал безопасности.\n\n"
+        "Когда тревога нарастает, телу нужен короткий, понятный сигнал безопасности.\n\n"
         "<b>Физиологический вздох:</b>\n"
         "• вдох носом\n"
         "• маленький довдох\n"
