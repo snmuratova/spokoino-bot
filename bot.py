@@ -246,10 +246,11 @@ def kb_start(user_id: int):
     kb = InlineKeyboardBuilder()
     kb.button(text="📊 Оценить состояние", callback_data="start:anxiety")
     kb.button(text="💚 Получить поддержку", callback_data="start:support")
-    kb.button(text="👩‍💻 О боте", callback_data="about:creators")
+    kb.button(text="🌱 Мак-карты", callback_data="cards:open")
+    kb.button(text="👩‍💻 О приложении", callback_data="about:creators")
     if user_id == ADMIN_ID:
         kb.button(text="📈 Статистика", callback_data="stats:view")
-    kb.adjust(1, 1, 1, 1)
+    kb.adjust(1, 1, 1, 1, 1)
     return kb.as_markup()
 
 
@@ -272,8 +273,9 @@ def kb_support():
     kb = InlineKeyboardBuilder()
     kb.button(text="⚡ Быстрая помощь", callback_data="support:fast")
     kb.button(text="🌿 Спокойная поддержка", callback_data="support:slow")
+    kb.button(text="🌱 МАК-карты", callback_data="cards:open")
     kb.button(text="🏠 В начало", callback_data="menu")
-    kb.adjust(1, 1, 1)
+    kb.adjust(1, 1, 1, 1)
     return kb.as_markup()
 
 
@@ -496,15 +498,23 @@ async def cb_menu(cb: CallbackQuery, state: FSMContext):
 async def cb_cards_open(cb: CallbackQuery):
     USERS_SEEN.add(cb.from_user.id)
     STATS["cards_open"] += 1
+    await cb.answer()
 
     text = (
-        "🌿 <b>Карты дня</b>\n\n"
+        "🌱 <b>Мак-карты</b>\n\n"
         "Иногда к состоянию легче подойти не через вопрос, а через образ.\n\n"
-        "Карты дня — это способ остановиться,\n"
+        "Мак-карты помогают остановиться,\n"
         "почувствовать себя и заметить то, что сейчас важно.\n\n"
-        "Если хочешь, открой их по кнопке ниже."
+        "Выбери, как хочешь продолжить:"
     )
-    await edit(cb, text, reply_markup=kb_cards_open())
+
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🌱 Перейти в Мак-бот", url="https://t.me/mak_practice_bot")
+    kb.button(text="💚 Вернуться к поддержке", callback_data="start:support")
+    kb.button(text="🏠 В начало", callback_data="menu")
+    kb.adjust(1, 1, 1)
+
+    await edit(cb, text, reply_markup=kb.as_markup())
 
 
 @dp.callback_query(F.data == "more")
