@@ -10,7 +10,12 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import CallbackQuery, Message, FSInputFile
+from aiogram.types import (
+    CallbackQuery,
+    Message,
+    FSInputFile,
+    ReplyKeyboardRemove,
+)
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
@@ -24,8 +29,10 @@ if not TOKEN:
 PORT = int(os.getenv("PORT", "10000"))
 ADMIN_ID = 862407613
 
-# если потом захочешь вести на mak_bot или на сайт — можно добавить сюда ссылку
-CARDS_URL = os.getenv("CARDS_URL", "").strip()
+# Ссылка на бот с картами дня
+CARDS_URL = "https://t.me/mak_practice_bot"
+
+# Необязательная ссылка на сайт проекта
 PROJECT_URL = os.getenv("PROJECT_URL", "").strip()
 
 
@@ -171,7 +178,7 @@ def completion_text(extra: str) -> str:
         f"{extra}\n\n"
         f"{praise()}\n\n"
         "Это уже важный шаг.\n"
-        "Хочешь продолжить, напомнить себе об этой практике или вернуться в начало?"
+        "Хочешь продолжить, напомнить себе о практике или вернуться в начало?"
     )
 
 
@@ -187,7 +194,7 @@ def seconds_until_target(hour: int, minute: int, *, tomorrow: bool = False) -> i
     return max(1, int((target - now).total_seconds()))
 
 
-async def reminder_worker(user_id: int, practice: str, seconds: int, label: str) -> None:
+async def reminder_worker(user_id: int, practice: str, seconds: int) -> None:
     try:
         await asyncio.sleep(seconds)
         await bot.send_message(
@@ -219,7 +226,7 @@ def schedule_reminder(user_id: int, practice: str, when: str) -> str:
         seconds = seconds_until_target(10, 0, tomorrow=True)
         label = "завтра"
 
-    task = asyncio.create_task(reminder_worker(user_id, practice, seconds, label))
+    task = asyncio.create_task(reminder_worker(user_id, practice, seconds))
     REMINDER_TASKS[user_id] = task
     REMINDER_LABELS[user_id] = label
     STATS["reminder_set"] += 1
@@ -244,6 +251,14 @@ def kb_cards():
     kb = InlineKeyboardBuilder()
     kb.button(text="🌱 Карты дня", callback_data="cards:open")
     kb.adjust(1)
+    return kb.as_markup()
+
+
+def kb_cards_open():
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🌱 Открыть карты дня", url=CARDS_URL)
+    kb.button(text="🏠 В начало", callback_data="menu")
+    kb.adjust(1, 1)
     return kb.as_markup()
 
 
@@ -416,6 +431,9 @@ async def cmd_start(message: Message, state: FSMContext):
     STATS["start"] += 1
     USERS_SEEN.add(message.from_user.id)
 
+    # Убираем старое нижнее меню, если оно осталось от старой версии
+    await message.answer(" ", reply_markup=ReplyKeyboardRemove())
+
     text = (
         "<b>🌿 Добро пожаловать</b>\n\n"
         "Это бесплатное пространство поддержки в моменты тревоги, усталости и внутреннего напряжения.\n\n"
@@ -439,6 +457,9 @@ async def cb_menu(cb: CallbackQuery, state: FSMContext):
     STATS["menu"] += 1
     USERS_SEEN.add(cb.from_user.id)
 
+    # На всякий случай снова убираем старое нижнее меню
+    await cb.message.answer(" ", reply_markup=ReplyKeyboardRemove())
+
     text = (
         "<b>🌿 Добро пожаловать</b>\n\n"
         "Это бесплатное пространство поддержки в моменты тревоги, усталости и внутреннего напряжения.\n\n"
@@ -460,14 +481,21 @@ async def cb_cards_open(cb: CallbackQuery):
     STATS["cards_open"] += 1
     await cb.answer()
 
-    if CARDS_URL:
-        await cb.message.answer(f"🍃 Карты дня:\n{CARDS_URL}")
-    else:
-        await cb.message.answer(
-            "🍃 Карты дня — это терапевтический способ заглянуть в своё состояние через образ.\n\n"
-            "Пока этот блок можно использовать как отдельное пространство вдохновения. "
-            "Если захочешь, мы потом привяжем сюда конкретную ссылку или отдельный сценарий."
-        )
+    text = (
+        "🍃 <b>Карты дня</b>\n\n"
+        "Иногда к состоянию легче подойти не через вопрос, а через образ.\n\n"
+        "Карты дня — это способ остановиться,\n"
+        "почувствовать себя и заметить то, что сейчас важно.\n\n"
+        "Если хочешь, открой их по кнопке ниже."
+    )
+    await cb.message.answer(text, parse_mode="HTML", reply_markup=kb_cards_open())
+
+
+@dp.callback_query(F.data == "more")
+async def cb_more(cb: CallbackQuery):
+    USERS_SEEN.add(cb.from_user.id)
+    text = "Продолжим 💛\n\nВыбери следующий шаг:"
+    await edit(cb, text, reply_markup=kb_steps())
 
 
 @dp.callback_query(F.data == "start:support")
@@ -860,7 +888,6 @@ async def q4(message: Message, state: FSMContext):
 
 @dp.message(AnxietyFlow.q5)
 async def q5(message: Message, state: FSMContext):
-    uid = message.from_user.id
     txt = (message.text or "").strip()
     if len(txt) < 2:
         await say(message, "Можно одной фразой — как поддержал(а) бы близкого человека?")
@@ -883,7 +910,7 @@ async def q5(message: Message, state: FSMContext):
     parts.append("")
     parts.append(praise())
     parts.append("")
-    parts.append("Это уже важный шаг.\nХочешь продолжить, напомнить себе об этой практике или вернуться в начало?")
+    parts.append("Это уже важный шаг.\nХочешь продолжить, напомнить себе о практике или вернуться в начало?")
 
     summary = "\n".join(parts)
     await say(message, summary, reply_markup=kb_after_step())
