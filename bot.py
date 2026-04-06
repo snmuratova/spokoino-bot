@@ -251,14 +251,14 @@ def kb_start(user_id: int):
 
 def kb_cards():
     kb = InlineKeyboardBuilder()
-    kb.button(text="🌱 Карты дня", callback_data="cards:open")
+    kb.button(text="🌿 Карты дня", callback_data="cards:open")
     kb.adjust(1)
     return kb.as_markup()
 
 
 def kb_cards_open():
     kb = InlineKeyboardBuilder()
-    kb.button(text="🌱 Открыть карты дня", url=CARDS_URL)
+    kb.button(text="🌿 Открыть карты дня", url=CARDS_URL)
     kb.button(text="🏠 В начало", callback_data="menu")
     kb.adjust(1, 1)
     return kb.as_markup()
@@ -447,7 +447,7 @@ async def cmd_start(message: Message, state: FSMContext):
     await say(message, text, reply_markup=kb_start(message.from_user.id))
     await say(
         message,
-        "🍃 Если захочется чего-то более образного и интуитивного — можно открыть карты дня.",
+        "🌿 Если захочется чего-то более образного и интуитивного — можно открыть карты дня.",
         reply_markup=kb_cards(),
     )
 
@@ -554,7 +554,7 @@ async def cb_about_creators(cb: CallbackQuery):
         "<b>👩‍💻 О создателях бота</b>\n\n"
         "Этот бот — результат работы команды.\n\n"
         "Он создан как пространство поддержки:\n"
-        "чтобы человек мог замедлиться, снизить тревогу и сделать шаг к внутренней устойчивости.\n\n"
+        "чтобы можно было замедлиться, снизить тревогу и сделать шаг к внутренней устойчивости.\n\n"
         "<b>🤗 Психологическая концепция и тексты</b>\n"
         "Светлана — психолог\n"
         "@muratovablog\n\n"
@@ -666,7 +666,7 @@ async def cb_anxiety_set(cb: CallbackQuery):
         text = (
             f"🧡 Ты отметила/отметил: <b>{level}/10</b>\n\n"
             "Похоже, сейчас очень непросто.\n"
-            "Давай начнём с того, что быстрее всего помогает телу:\n"
+            "Давай начнём с того, что быстрее всего помогает физически:\n"
             "дыхание, вода, звук природы и опора на реальность.\n\n"
             f"{praise()}"
         )
@@ -759,10 +759,10 @@ async def cb_breath(cb: CallbackQuery):
     header = f"🌬 <b>Шаг 1 из 4</b>  <code>{progress_bar(1)}</code>"
     text = (
         f"{header}\n\n"
-        "Когда тревога поднимается, телу нужен короткий, понятный сигнал безопасности.\n\n"
+        "Когда тревога увеличивается, телу нужен короткий, понятный сигнал безопасности.\n\n"
         "<b>Физиологический вздох:</b>\n"
         "• вдох носом\n"
-        "• маленький довдох\n"
+        "• короткий вдох\n"
         "• длинный выдох ртом\n\n"
         "Повтори <b>3–5 раз</b>.\n\n"
         "Если хочется более ровно:\n"
