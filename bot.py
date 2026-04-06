@@ -254,18 +254,12 @@ def kb_start(user_id: int):
     return kb.as_markup()
 
 
-def kb_cards():
-    kb = InlineKeyboardBuilder()
-    kb.button(text="🌱 Карты дня", callback_data="cards:open")
-    kb.adjust(1)
-    return kb.as_markup()
-
-
 def kb_cards_open():
     kb = InlineKeyboardBuilder()
     kb.button(text="🌿 Открыть карты дня", url=CARDS_URL)
+    kb.button(text="💚 Вернуться к поддержке", callback_data="start:support")
     kb.button(text="🏠 В начало", callback_data="menu")
-    kb.adjust(1, 1)
+    kb.adjust(1, 1, 1)
     return kb.as_markup()
 
 
@@ -459,8 +453,11 @@ async def cmd_start(message: Message, state: FSMContext):
         "Здесь не нужно справляться со всем сразу.\n"
         "Можно начать с одного шага — и этого уже достаточно.\n\n"
         "Я рядом.\n\n"
+        "🍃 Если захочется чего-то более образного и интуитивного — можно открыть Мак-карты.\n\n"
         "Выбери, что тебе сейчас ближе 👇"
     )
+
+    await say(message, text, reply_markup=kb_start(message.from_user.id))
 
 
 @dp.callback_query(F.data == "menu")
@@ -469,18 +466,19 @@ async def cb_menu(cb: CallbackQuery, state: FSMContext):
     STATS["menu"] += 1
     USERS_SEEN.add(cb.from_user.id)
 
-    await cb.message.answer("Обновляю интерфейс…", reply_markup=ReplyKeyboardRemove())
-
     text = (
         "<b>🌿 Добро пожаловать</b>\n\n"
         "Это бесплатное пространство поддержки в моменты тревоги, усталости и внутреннего напряжения.\n\n"
         "Здесь не нужно справляться со всем сразу.\n"
         "Можно начать с одного шага — и этого уже достаточно.\n\n"
         "Я рядом.\n\n"
+        "🍃 Если захочется чего-то более образного и интуитивного — можно открыть Мак-карты.\n\n"
         "Выбери, что тебе сейчас ближе 👇"
     )
 
-    
+    await edit(cb, text, reply_markup=kb_start(cb.from_user.id))
+
+
 @dp.callback_query(F.data == "cards:open")
 async def cb_cards_open(cb: CallbackQuery):
     USERS_SEEN.add(cb.from_user.id)
@@ -495,13 +493,7 @@ async def cb_cards_open(cb: CallbackQuery):
         "Выбери, как хочешь продолжить:"
     )
 
-    kb = InlineKeyboardBuilder()
-    kb.button(text="🌱 Перейти в Мак-бот", url="https://t.me/mak_practice_bot")
-    kb.button(text="💚 Вернуться к поддержке", callback_data="start:support")
-    kb.button(text="🏠 В начало", callback_data="menu")
-    kb.adjust(1, 1, 1)
-
-    await edit(cb, text, reply_markup=kb.as_markup())
+    await edit(cb, text, reply_markup=kb_cards_open())
 
 
 @dp.callback_query(F.data == "more")
@@ -537,7 +529,7 @@ async def cb_support_fast(cb: CallbackQuery):
     kb.button(text="💧 Вода / умыться", callback_data="plan:water")
     kb.button(text="🌳 Заземление", callback_data="step:ground")
     kb.button(text="🏠 В начало", callback_data="menu")
-    kb.adjust(1)
+    kb.adjust(1, 1, 1, 1, 1)
     await edit(cb, text, reply_markup=kb.as_markup())
 
 
