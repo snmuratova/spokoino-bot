@@ -462,13 +462,6 @@ async def cmd_start(message: Message, state: FSMContext):
         "Выбери, что тебе сейчас ближе 👇"
     )
 
-    await say(message, text, reply_markup=kb_start(message.from_user.id))
-    await say(
-        message,
-        "🌿 Если захочется чего-то более образного и интуитивного — можно открыть карты дня.",
-        reply_markup=kb_cards(),
-    )
-
 
 @dp.callback_query(F.data == "menu")
 async def cb_menu(cb: CallbackQuery, state: FSMContext):
@@ -487,13 +480,7 @@ async def cb_menu(cb: CallbackQuery, state: FSMContext):
         "Выбери, что тебе сейчас ближе 👇"
     )
 
-    await edit(cb, text, reply_markup=kb_start(cb.from_user.id))
-    await cb.message.answer(
-        "🌿 Если захочется чего-то более образного и интуитивного — можно открыть карты дня.",
-        reply_markup=kb_cards(),
-    )
-
-
+    
 @dp.callback_query(F.data == "cards:open")
 async def cb_cards_open(cb: CallbackQuery):
     USERS_SEEN.add(cb.from_user.id)
