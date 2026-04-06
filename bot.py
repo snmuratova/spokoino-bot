@@ -246,7 +246,7 @@ def kb_start(user_id: int):
     kb = InlineKeyboardBuilder()
     kb.button(text="📊 Оценить состояние", callback_data="start:anxiety")
     kb.button(text="💚 Получить поддержку", callback_data="start:support")
-    kb.button(text="🌱 Мак-карты", callback_data="cards:open")
+    kb.button(text="🌱 Метафорические карты", callback_data="cards:open")
     kb.button(text="👩‍💻 О приложении", callback_data="about:creators")
     if user_id == ADMIN_ID:
         kb.button(text="📈 Статистика", callback_data="stats:view")
