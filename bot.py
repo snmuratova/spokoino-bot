@@ -23,7 +23,10 @@ if not TOKEN:
 
 PORT = int(os.getenv("PORT", "10000"))
 ADMIN_ID = 862407613
-PROJECT_URL = os.getenv("PROJECT_URL", "").strip()  # необязательно
+
+# если потом захочешь вести на mak_bot или на сайт — можно добавить сюда ссылку
+CARDS_URL = os.getenv("CARDS_URL", "").strip()
+PROJECT_URL = os.getenv("PROJECT_URL", "").strip()
 
 
 # ==========================
@@ -60,6 +63,8 @@ STATS = {
     "creator_mikhail": 0,
     "creator_sofya": 0,
     "site_open": 0,
+
+    "cards_open": 0,
 
     "reminder_set": 0,
     "reminder_sent": 0,
@@ -158,7 +163,7 @@ def reminder_text(practice: str) -> str:
         "plan_timer": "⏲ Напоминаю: можно поставить таймер на 2 минуты и сделать одно простое действие.",
         "questions": "💭 Напоминаю: можно спокойно разобрать, что именно тревожит, и вернуть себе немного ясности.",
     }
-    return mapping.get(practice, "🌿 Напоминаю: можно сделать практику поддержки и чуть бережнее побыть с собой.")
+    return mapping.get(practice, "🌿 Напоминаю: можно сделать практику поддержки и чуть мягче побыть с собой.")
 
 
 def completion_text(extra: str) -> str:
@@ -232,6 +237,13 @@ def kb_start(user_id: int):
     if user_id == ADMIN_ID:
         kb.button(text="📈 Статистика", callback_data="stats:view")
     kb.adjust(1, 1, 1, 1)
+    return kb.as_markup()
+
+
+def kb_cards():
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🍃 Карты дня", callback_data="cards:open")
+    kb.adjust(1)
     return kb.as_markup()
 
 
@@ -384,6 +396,7 @@ def stats_text() -> str:
         f"📌 План: {STATS['step_plan']}\n"
         f"🎧 Звук леса: {STATS['sound_forest']}\n\n"
         f"🏆 Самый популярный шаг: {top_step}\n\n"
+        f"🍃 Карты дня: {STATS['cards_open']}\n\n"
         f"🔗 О создателях:\n"
         f"Светлана: {STATS['creator_svetlana']}\n"
         f"Михаил: {STATS['creator_mikhail']}\n"
@@ -413,6 +426,11 @@ async def cmd_start(message: Message, state: FSMContext):
     )
 
     await say(message, text, reply_markup=kb_start(message.from_user.id))
+    await say(
+        message,
+        "🍃 Если захочется чего-то более образного и интуитивного — можно открыть карты дня.",
+        reply_markup=kb_cards(),
+    )
 
 
 @dp.callback_query(F.data == "menu")
@@ -430,13 +448,26 @@ async def cb_menu(cb: CallbackQuery, state: FSMContext):
         "Выбери, что тебе сейчас ближе 👇"
     )
     await edit(cb, text, reply_markup=kb_start(cb.from_user.id))
+    await cb.message.answer(
+        "🍃 Если захочется чего-то более образного и интуитивного — можно открыть карты дня.",
+        reply_markup=kb_cards(),
+    )
 
 
-@dp.callback_query(F.data == "more")
-async def cb_more(cb: CallbackQuery):
+@dp.callback_query(F.data == "cards:open")
+async def cb_cards_open(cb: CallbackQuery):
     USERS_SEEN.add(cb.from_user.id)
-    text = "Продолжим 💛\n\nВыбери следующий шаг:"
-    await edit(cb, text, reply_markup=kb_steps())
+    STATS["cards_open"] += 1
+    await cb.answer()
+
+    if CARDS_URL:
+        await cb.message.answer(f"🍃 Карты дня:\n{CARDS_URL}")
+    else:
+        await cb.message.answer(
+            "🍃 Карты дня — это мягкий способ заглянуть в своё состояние через образ.\n\n"
+            "Пока этот блок можно использовать как отдельное пространство вдохновения. "
+            "Если захочешь, мы потом привяжем сюда конкретную ссылку или отдельный сценарий."
+        )
 
 
 @dp.callback_query(F.data == "start:support")
