@@ -29,7 +29,7 @@ if not TOKEN:
 PORT = int(os.getenv("PORT", "10000"))
 ADMIN_ID = 862407613
 
-# Ссылка на бот с картами дня
+# Ссылка на мак-бот
 CARDS_URL = "https://t.me/mak_practice_bot"
 
 # Необязательная ссылка на сайт проекта
@@ -169,6 +169,10 @@ def reminder_text(practice: str) -> str:
         "plan_facts": "📝 Напоминаю: можно записать 3 факта и 1 следующий шаг — это помогает вернуть ясность.",
         "plan_timer": "⏲ Напоминаю: можно поставить таймер на 2 минуты и сделать одно простое действие.",
         "questions": "💭 Напоминаю: можно спокойно разобрать, что именно тревожит, и вернуть себе немного ясности.",
+        "now_walk": "🚶 Напоминаю: можно немного пройтись и дать телу переключиться.",
+        "now_water": "💧 Напоминаю: можно попить воды и чуть замедлиться.",
+        "now_breath": "🌬 Напоминаю: можно немного подышать и вернуть телу ощущение безопасности.",
+        "now_message": "💬 Напоминаю: можно написать близкому человеку и не оставаться одной или одному.",
     }
     return mapping.get(practice, "🌿 Напоминаю: можно сделать практику поддержки.")
 
@@ -242,7 +246,7 @@ def kb_start(user_id: int):
     kb = InlineKeyboardBuilder()
     kb.button(text="📊 Оценить состояние", callback_data="start:anxiety")
     kb.button(text="💚 Получить поддержку", callback_data="start:support")
-    kb.button(text="👩‍💻 О создателях", callback_data="about:creators")
+    kb.button(text="👩‍💻 О боте", callback_data="about:creators")
     if user_id == ADMIN_ID:
         kb.button(text="📈 Статистика", callback_data="stats:view")
     kb.adjust(1, 1, 1, 1)
@@ -251,7 +255,7 @@ def kb_start(user_id: int):
 
 def kb_cards():
     kb = InlineKeyboardBuilder()
-    kb.button(text="🌿 Карты дня", callback_data="cards:open")
+    kb.button(text="🌱 Карты дня", callback_data="cards:open")
     kb.adjust(1)
     return kb.as_markup()
 
@@ -312,6 +316,17 @@ def kb_now_future():
     return kb.as_markup()
 
 
+def kb_now_actions():
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🌬 Подышать", callback_data="now:breath")
+    kb.button(text="🚶 Погулять", callback_data="now:walk")
+    kb.button(text="💧 Попить воды", callback_data="now:water")
+    kb.button(text="💬 Написать близкому", callback_data="now:message")
+    kb.button(text="✍️ Свой вариант", callback_data="now:custom")
+    kb.adjust(1, 1, 1, 1, 1)
+    return kb.as_markup()
+
+
 def kb_plan():
     kb = InlineKeyboardBuilder()
     kb.button(text="💧 Вода / умыться", callback_data="plan:water")
@@ -367,12 +382,13 @@ def kb_creators(user_id: int):
     kb.button(text="Светлана", callback_data="creator:svetlana")
     kb.button(text="Михаил", callback_data="creator:mikhail")
     kb.button(text="Софья", callback_data="creator:sofya")
+    kb.button(text="🌿 Перейти в Мак онлайн", url=CARDS_URL)
     if PROJECT_URL:
         kb.button(text="🌐 Сайт проекта", callback_data="creator:site")
     if user_id == ADMIN_ID:
         kb.button(text="⬅️ В статистику", callback_data="stats:view")
     kb.button(text="🏠 В начало", callback_data="menu")
-    kb.adjust(1, 1, 1, 1, 1, 1)
+    kb.adjust(1, 1, 1, 1, 1, 1, 1)
     return kb.as_markup()
 
 
@@ -413,7 +429,7 @@ def stats_text() -> str:
         f"📌 План: {STATS['step_plan']}\n"
         f"🎧 Звук леса: {STATS['sound_forest']}\n\n"
         f"🏆 Самый популярный шаг: {top_step}\n\n"
-        f"🌱 Карты дня: {STATS['cards_open']}\n\n"
+        f"🌿 Карты дня: {STATS['cards_open']}\n\n"
         f"🔗 О создателях:\n"
         f"Светлана: {STATS['creator_svetlana']}\n"
         f"Михаил: {STATS['creator_mikhail']}\n"
@@ -471,7 +487,7 @@ async def cb_menu(cb: CallbackQuery, state: FSMContext):
 
     await edit(cb, text, reply_markup=kb_start(cb.from_user.id))
     await cb.message.answer(
-        "🍃 Если захочется чего-то более образного и интуитивного — можно открыть карты дня.",
+        "🌿 Если захочется чего-то более образного и интуитивного — можно открыть карты дня.",
         reply_markup=kb_cards(),
     )
 
@@ -482,7 +498,7 @@ async def cb_cards_open(cb: CallbackQuery):
     STATS["cards_open"] += 1
 
     text = (
-        "🍃 <b>Карты дня</b>\n\n"
+        "🌿 <b>Карты дня</b>\n\n"
         "Иногда к состоянию легче подойти не через вопрос, а через образ.\n\n"
         "Карты дня — это способ остановиться,\n"
         "почувствовать себя и заметить то, что сейчас важно.\n\n"
@@ -544,17 +560,17 @@ async def cb_support_slow(cb: CallbackQuery, state: FSMContext):
 
 
 # ==========================
-# ABOUT CREATORS
+# ABOUT BOT / CREATORS
 # ==========================
 @dp.callback_query(F.data == "about:creators")
 async def cb_about_creators(cb: CallbackQuery):
     USERS_SEEN.add(cb.from_user.id)
     STATS["about_creators"] += 1
     text = (
-        "<b>👩‍💻 О создателях бота</b>\n\n"
+        "<b>👩‍💻 О боте</b>\n\n"
         "Этот бот — результат работы команды.\n\n"
         "Он создан как пространство поддержки:\n"
-        "чтобы можно было замедлиться, снизить тревогу и сделать шаг к внутренней устойчивости.\n\n"
+        "чтобы человек мог замедлиться, снизить тревогу и сделать шаг к внутренней устойчивости.\n\n"
         "<b>🤗 Психологическая концепция и тексты</b>\n"
         "Светлана — психолог\n"
         "@muratovablog\n\n"
@@ -564,7 +580,7 @@ async def cb_about_creators(cb: CallbackQuery):
         "<b>🎨 Визуальный стиль и дизайн карт</b>\n"
         "Софья\n"
         "@O11111111O1\n\n"
-        "Выбери, чью страницу открыть:"
+        "Ниже можно открыть страницы команды или перейти в Мак онлайн."
     )
     await edit(cb, text, reply_markup=kb_creators(cb.from_user.id))
 
@@ -666,7 +682,7 @@ async def cb_anxiety_set(cb: CallbackQuery):
         text = (
             f"🧡 Ты отметила/отметил: <b>{level}/10</b>\n\n"
             "Похоже, сейчас очень непросто.\n"
-            "Давай начнём с того, что быстрее всего помогает физически:\n"
+            "Давай начнём с того, что быстрее всего помогает телу:\n"
             "дыхание, вода, звук природы и опора на реальность.\n\n"
             f"{praise()}"
         )
@@ -711,6 +727,10 @@ async def cb_remind_choose(cb: CallbackQuery):
         "plan_facts": "практике «3 факта → 1 шаг»",
         "plan_timer": "таймере",
         "questions": "разборе тревоги",
+        "now_walk": "прогулке",
+        "now_water": "воде",
+        "now_breath": "дыхании",
+        "now_message": "сообщении близкому",
     }
     text = (
         f"⏰ Напомнить тебе о <b>{practice_names.get(practice, 'практике')}</b>?\n\n"
@@ -759,10 +779,10 @@ async def cb_breath(cb: CallbackQuery):
     header = f"🌬 <b>Шаг 1 из 4</b>  <code>{progress_bar(1)}</code>"
     text = (
         f"{header}\n\n"
-        "Когда тревога увеличивается, телу нужен короткий, понятный сигнал безопасности.\n\n"
+        "Когда тревога поднимается, телу нужен короткий, понятный сигнал безопасности.\n\n"
         "<b>Физиологический вздох:</b>\n"
         "• вдох носом\n"
-        "• короткий вдох\n"
+        "• маленький довдох\n"
         "• длинный выдох ртом\n\n"
         "Повтори <b>3–5 раз</b>.\n\n"
         "Если хочется более ровно:\n"
@@ -810,32 +830,67 @@ async def q1(message: Message, state: FSMContext):
     )
 
 
-@dp.callback_query(AnxietyFlow.q2, F.data.in_({"aq:now", "aq:future"}))
-async def q2(cb: CallbackQuery, state: FSMContext):
+@dp.callback_query(AnxietyFlow.q2, F.data == "aq:now")
+async def q2_now(cb: CallbackQuery, state: FSMContext):
+    await cb.answer()
+    await state.update_data(q2="про сейчас")
+    await state.set_state(AnxietyFlow.q3)
+
+    await say(
+        cb.message,
+        "3️⃣ Что может помочь тебе <b>прямо сейчас</b>?\n\n"
+        "Можно выбрать готовый вариант 👇",
+        reply_markup=kb_now_actions(),
+    )
+
+
+@dp.callback_query(AnxietyFlow.q2, F.data == "aq:future")
+async def q2_future(cb: CallbackQuery, state: FSMContext):
+    await cb.answer()
+    await state.update_data(q2="про будущее")
+    await state.set_state(AnxietyFlow.q3)
+
+    await say(
+        cb.message,
+        "Понимаю.\n"
+        "Когда тревога уходит в будущее, мысли могут убегать далеко вперёд.\n"
+        "Это правда выматывает.\n\n"
+        "Давай на секунду вернёмся в сегодняшний день.\n\n"
+        "3️⃣ Что из того, что тебя тревожит, происходит <b>уже сейчас</b>,\n"
+        "а что пока существует только в мыслях или предположениях?\n\n"
+        "Ответь 1–2 короткими фразами.",
+    )
+
+
+@dp.callback_query(AnxietyFlow.q3, F.data.startswith("now:"))
+async def q3_now_actions(cb: CallbackQuery, state: FSMContext):
     await cb.answer()
 
-    if cb.data == "aq:now":
-        await state.update_data(q2="про сейчас")
-        await state.set_state(AnxietyFlow.q3)
+    mapping = {
+        "now:breath": ("подышать", "now_breath"),
+        "now:walk": ("погулять", "now_walk"),
+        "now:water": ("попить воды", "now_water"),
+        "now:message": ("написать близкому", "now_message"),
+    }
+
+    if cb.data == "now:custom":
         await say(
             cb.message,
-            "3️⃣ Что ты можешь сделать в ближайшие 10 минут,\n"
-            "чтобы стало хотя бы на <b>5% легче</b>?\n"
-            "Пусть это будет один простой шаг.",
+            "Напиши свой вариант.\nЧто может помочь тебе прямо сейчас?",
         )
-    else:
-        await state.update_data(q2="про будущее")
-        await state.set_state(AnxietyFlow.q3)
-        await say(
-            cb.message,
-            "Понимаю.\n"
-            "Когда тревога уходит в будущее, мысли могут убегать очень далеко вперёд.\n"
-            "Это правда выматывает.\n\n"
-            "Давай на секунду вернёмся в сегодняшний день.\n\n"
-            "3️⃣ Что из того, что тебя тревожит, происходит <b>уже сейчас</b>,\n"
-            "а что пока существует только в мыслях или предположениях?\n\n"
-            "Ответь 1–2 короткими фразами.",
-        )
+        return
+
+    chosen_text, practice_key = mapping.get(cb.data, ("", "questions"))
+    await state.update_data(q3=chosen_text)
+    set_last_practice(cb.from_user.id, practice_key)
+    await state.set_state(AnxietyFlow.q5)
+
+    await say(
+        cb.message,
+        "4️⃣ Представь, что <b>друг или близкий человек</b> написал тебе это же.\n"
+        "Что бы ты ответил(а), чтобы поддержать?\n"
+        "<i>1–2 предложения. По-доброму.</i>",
+    )
 
 
 @dp.message(AnxietyFlow.q3)
@@ -853,9 +908,8 @@ async def q3(message: Message, state: FSMContext):
         await state.set_state(AnxietyFlow.q4)
         await say(
             message,
-            "4️⃣ Что ты можешь сделать в ближайшие 10 минут,\n"
-            "чтобы стало хотя бы на <b>5% легче</b>?\n"
-            "Пусть это будет один простой шаг.",
+            "4️⃣ Что может помочь тебе в ближайшее время?\n"
+            "Напиши один простой шаг.",
         )
         return
 
