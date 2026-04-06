@@ -174,12 +174,14 @@ def reminder_text(practice: str) -> str:
 
 
 def completion_text(extra: str) -> str:
-    return (
-        f"{extra}\n\n"
+    base = (
         f"{praise()}\n\n"
         "Это уже важный шаг.\n"
         "Хочешь продолжить, напомнить себе о практике или вернуться в начало?"
     )
+    if extra:
+        return f"{extra}\n\n{base}"
+    return base
 
 
 def seconds_until_target(hour: int, minute: int, *, tomorrow: bool = False) -> int:
@@ -431,8 +433,7 @@ async def cmd_start(message: Message, state: FSMContext):
     STATS["start"] += 1
     USERS_SEEN.add(message.from_user.id)
 
-    # Убираем старое нижнее меню, если оно осталось от старой версии
-    await message.answer(" ", reply_markup=ReplyKeyboardRemove())
+    await message.answer("Обновляю интерфейс…", reply_markup=ReplyKeyboardRemove())
 
     text = (
         "<b>🌿 Добро пожаловать</b>\n\n"
@@ -457,8 +458,7 @@ async def cb_menu(cb: CallbackQuery, state: FSMContext):
     STATS["menu"] += 1
     USERS_SEEN.add(cb.from_user.id)
 
-    # На всякий случай снова убираем старое нижнее меню
-    await cb.message.answer(" ", reply_markup=ReplyKeyboardRemove())
+    await cb.message.answer("Обновляю интерфейс…", reply_markup=ReplyKeyboardRemove())
 
     text = (
         "<b>🌿 Добро пожаловать</b>\n\n"
@@ -468,6 +468,7 @@ async def cb_menu(cb: CallbackQuery, state: FSMContext):
         "Я рядом.\n\n"
         "Выбери, что тебе сейчас ближе 👇"
     )
+
     await edit(cb, text, reply_markup=kb_start(cb.from_user.id))
     await cb.message.answer(
         "🍃 Если захочется чего-то более образного и интуитивного — можно открыть карты дня.",
@@ -479,7 +480,6 @@ async def cb_menu(cb: CallbackQuery, state: FSMContext):
 async def cb_cards_open(cb: CallbackQuery):
     USERS_SEEN.add(cb.from_user.id)
     STATS["cards_open"] += 1
-    await cb.answer()
 
     text = (
         "🍃 <b>Карты дня</b>\n\n"
@@ -488,7 +488,7 @@ async def cb_cards_open(cb: CallbackQuery):
         "почувствовать себя и заметить то, что сейчас важно.\n\n"
         "Если хочешь, открой их по кнопке ниже."
     )
-    await cb.message.answer(text, parse_mode="HTML", reply_markup=kb_cards_open())
+    await edit(cb, text, reply_markup=kb_cards_open())
 
 
 @dp.callback_query(F.data == "more")
@@ -1086,7 +1086,8 @@ async def run_polling_forever() -> None:
         except TelegramConflictError:
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 60)
-        except Exception:
+        except Exception as e:
+            print("POLLING ERROR:", e)
             await asyncio.sleep(3)
 
 
