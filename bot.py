@@ -560,7 +560,7 @@ async def cb_about_creators(cb: CallbackQuery):
         "чтобы человек мог замедлиться, снизить тревогу и сделать шаг к внутренней устойчивости.\n\n"
         "<b>🤗 Психологическая концепция и тексты</b>\n"
         "Светлана — психолог\n"
-        "@muratovablog\n\n"
+        "@teplaya_psihologiya\n\n"
         "<b>💻 Программная разработка</b>\n"
         "Михаил\n"
         "@mishaguber\n\n"
@@ -577,8 +577,10 @@ async def cb_creator_svetlana(cb: CallbackQuery):
     USERS_SEEN.add(cb.from_user.id)
     STATS["creator_svetlana"] += 1
     await cb.answer()
-    await cb.message.answer("Светлана — психолог\nСтраница: @muratovablog")
-
+    await cb.message.answer(
+    "Светлана — психолог\n"
+    "Страница: https://t.me/teplaya_psihologiya"
+)
 
 @dp.callback_query(F.data == "creator:mikhail")
 async def cb_creator_mikhail(cb: CallbackQuery):
