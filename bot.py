@@ -595,7 +595,10 @@ async def cb_creator_sofya(cb: CallbackQuery):
     USERS_SEEN.add(cb.from_user.id)
     STATS["creator_sofya"] += 1
     await cb.answer()
-    await cb.message.answer("Софья — визуальный стиль и дизайн карт\nСтраница: @O11111111O1")
+    await cb.message.answer(
+    "Софья — визуальный стиль и дизайн карт\n"
+    "Портфолио: https://readymag.com/archive.ah23/4084372"
+)
 
 
 @dp.callback_query(F.data == "creator:site")
