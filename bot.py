@@ -597,7 +597,7 @@ async def cb_creator_sofya(cb: CallbackQuery):
     await cb.answer()
     await cb.message.answer(
     "Софья — визуальный стиль и дизайн карт\n"
-    "Портфолио: https://readymag.com/archive.ah23/4084372"
+    "Портфолио: https://readymag.website/archive.ah23/4084372/"
 )
 
 
